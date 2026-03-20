@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 type AgentId = 'master' | 'leadgen' | 'sales' | 'insights' | 'marketing' | 'operations' | 'finance' | 'product';
 interface Msg { id: string; role: 'user' | 'assistant'; text: string; time: string; }
@@ -248,10 +248,10 @@ export default function AgentDashboard() {
   
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const a = agents[active];
-  const msgs = chats[active];
+  const a = agents[active as AgentId];
+  const msgs = chats[active as AgentId] || [];
   const currentPrompts = a.prompts;
-  const currentIndex = promptIndices[active];
+  const currentIndex = promptIndices[active as AgentId] || 0;
   const visiblePrompts = currentPrompts.slice(currentIndex, currentIndex + 4);
   const hasMorePrompts = currentPrompts.length > 4;
 
@@ -273,9 +273,9 @@ export default function AgentDashboard() {
   }, []);
 
   const toggleTheme = () => {
-    setDark(prev => {
+    setDark((prev: boolean) => {
       const next = !prev;
-      try { localStorage.setItem('tnc-theme', next ? 'dark' : 'light'); } catch {}
+      try { localStorage.setItem('tnc-theme', next ? 'dark' : 'light'); } catch (e) {}
       return next;
     });
   };
@@ -285,10 +285,14 @@ export default function AgentDashboard() {
     if (hydrated) saveChats(chats);
   }, [chats, hydrated]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
+  useEffect(() => {
+    if (hydrated && msgs.length >= 0) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [msgs, hydrated]);
   useEffect(() => { inputRef.current?.focus(); }, [active]);
   
-  const fetchCrm = async () => { try { const r = await fetch('/api/sheets'); const d = await r.json(); setCrm(d.rows || []); } catch { } };
+  const fetchCrm = async () => { try { const r = await fetch('/api/sheets'); const d = await r.json(); setCrm(d.rows || []); } catch (e) { } };
   useEffect(() => { fetchCrm(); }, []);
 
   // Keyboard shortcuts
@@ -302,7 +306,7 @@ export default function AgentDashboard() {
         }
         if (e.key === 'k') {
           e.preventDefault();
-          setChats(p => ({ ...p, [active]: [] }));
+          setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [active]: [] }));
         }
       }
     };
@@ -313,11 +317,11 @@ export default function AgentDashboard() {
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
     const userMsg: Msg = { id: 'u-' + Date.now(), role: 'user', text: text.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-    setChats(p => ({ ...p, [active]: [...p[active], userMsg] }));
+    setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [active]: [...p[active], userMsg] }));
     setInput('');
     setLoading(true);
     try {
-      const body: any = { message: text, agent: active, history: chats[active].map(m => ({ role: m.role, content: m.text })) };
+      const body: any = { message: text, agent: active, history: ((chats[active as AgentId] || []) as Msg[]).map((m: Msg) => ({ role: m.role, content: m.text })) };
       // For master agent, include cross-agent context
       if (active === 'master') {
         body.crossAgentContext = buildCrossAgentContext(chats);
@@ -327,18 +331,18 @@ export default function AgentDashboard() {
       const botMsg: Msg = { id: 'a-' + Date.now(), role: 'assistant', text: d.response || d.error || 'No response received.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       setChats(p => ({ ...p, [active]: [...p[active], botMsg] }));
       fetchCrm();
-    } catch { 
+    } catch (e) { 
       const errMsg: Msg = { id: 'e-' + Date.now(), role: 'assistant', text: 'Connection failed. Make sure the server is running.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; 
-      setChats(p => ({ ...p, [active]: [...p[active], errMsg] })); 
+      setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [active]: [...p[active], errMsg] })); 
     } finally { setLoading(false); }
   }, [active, chats, loading]);
   
   const copyText = (text: string, id: string) => { navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(null), 2000); };
-  const clearChat = () => { setChats(p => ({ ...p, [active]: [] })); };
+  const clearChat = () => { setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [active as AgentId]: [] })); };
 
   // Count total messages across all agents for master dashboard
-  const totalMessages = Object.values(chats).reduce((sum, msgs) => sum + msgs.length, 0);
-  const activeAgentCount = chatAgentIds.filter(id => chats[id].length > 0).length;
+  const totalMessages = (Object.values(chats) as Msg[][]).reduce((sum: number, msgs: Msg[]) => sum + msgs.length, 0);
+  const activeAgentCount = chatAgentIds.filter((id: AgentId) => (chats[id as AgentId] || []).length > 0).length;
 
   return (
     <>
@@ -403,7 +407,7 @@ export default function AgentDashboard() {
               <div style={{ fontSize: 9, color: t.textMuted, marginTop: 5, letterSpacing: 1.5, textTransform: 'uppercase' }}>Executive Team · {totalMessages} messages</div>
             </div>
             <div className="sidebar-scroll" style={{ padding: '6px 10px', flex: 1, overflowY: 'auto' }}>
-              {allAgentIds.map((id, idx) => {
+              {allAgentIds.map((id: AgentId, idx: number) => {
                 const ag = agents[id];
                 const isActive = active === id;
                 const isMaster = id === 'master';
@@ -458,15 +462,15 @@ export default function AgentDashboard() {
               {active === 'master' && activeAgentCount > 0 && (
                 <span style={{ fontSize: 10, background: t.masterBadge, color: t.master, padding: '3px 10px', borderRadius: 12, fontWeight: 500 }}>{activeAgentCount}/7 agents active</span>
               )}
-              {msgs.length > 0 && (
+              {(chats[active as AgentId] || []).length > 0 && (
                 <button onClick={clearChat} style={{ padding: '5px 12px', borderRadius: 4, border: `1px solid ${t.border}`, background: t.bgCard, color: t.textSoft, fontSize: 10, cursor: 'pointer', transition: 'all 0.2s ease' }}>Clear</button>
               )}
             </div>
           </div>
           
           {/* MESSAGES */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-            {msgs.length === 0 ? (
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px', background: t.bg, transition: 'background 0.3s ease' }}>
+            {(chats[active as AgentId] || []).length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20 }}>
                 <div style={{ fontSize: 56, color: activeColor, opacity: 0.15 }}>{a.icon}</div>
                 <div style={{ textAlign: 'center', maxWidth: 500 }}>
@@ -490,7 +494,7 @@ export default function AgentDashboard() {
               </div>
             ) : (
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
-                {msgs.map(m => (
+                {msgs.map((m: Msg) => (
                   <div key={m.id} className="msg-anim" style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                     <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 5, margin: '0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>{m.role === 'user' ? 'Prasann' : a.name} <span style={{ opacity: 0.4, margin: '0 3px' }}>·</span> {m.time}</div>
                     <div style={{ 
@@ -522,7 +526,7 @@ export default function AgentDashboard() {
             <div style={{ maxWidth: 800, margin: '0 auto' }}>
               
               {/* SUGGESTION CARDS */}
-              {msgs.length === 0 && (
+              {(chats[active as AgentId] || []).length === 0 && (
                 <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <div style={{ fontSize: 10, fontWeight: 600, color: t.textSoft, letterSpacing: 1, textTransform: 'uppercase' }}>
@@ -530,12 +534,12 @@ export default function AgentDashboard() {
                     </div>
                     {hasMorePrompts && (
                       <button className="refresh-btn" onClick={() => {
-                        setPromptIndices(prev => ({ ...prev, [active]: prev[active] + 4 >= currentPrompts.length ? 0 : prev[active] + 4 }));
+                        setPromptIndices((prev: Record<AgentId, number>) => ({ ...prev, [active]: prev[active] + 4 >= currentPrompts.length ? 0 : prev[active] + 4 }));
                       }}>⟳ Refresh</button>
                     )}
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
-                    {visiblePrompts.map((p, i) => (
+                    {visiblePrompts.map((p: string, i: number) => (
                       <button key={i} className="prompt-btn" onClick={() => setInput(p)} style={active === 'master' ? { borderColor: t.masterInputBorder, background: t.masterBg } : {}}>
                         {p.length > 85 ? p.substring(0, 82) + '...' : p}
                       </button>
@@ -546,8 +550,8 @@ export default function AgentDashboard() {
 
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                 <textarea 
-                  ref={inputRef} value={input} onChange={e => setInput(e.target.value)} 
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }} 
+                  ref={inputRef} value={input} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)} 
+                  onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }} 
                   placeholder={active === 'master' ? 'Type a command (/brief, /trending...) or ask anything...' : `Message ${a.name}...`} rows={1}
                   style={{ flex: 1, padding: '12px 18px', borderRadius: 12, border: `1px solid ${active === 'master' ? t.masterInputBorder : t.border}`, background: active === 'master' ? t.masterInput : t.bgInput, color: t.text, fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 150, lineHeight: 1.5, transition: 'border-color 0.2s ease' }} 
                 />
@@ -578,7 +582,7 @@ export default function AgentDashboard() {
                   <div style={{ fontSize: 36, marginBottom: 12, color: t.border }}>📭</div>
                   No prospects connected yet.
                 </div>
-              ) : crm.map((p, i) => (
+              ) : crm.map((p: Prospect, i: number) => (
                 <div key={i} style={{ padding: '12px', borderRadius: 6, border: `1px solid ${t.border}`, marginBottom: 8, background: t.bgCard, boxShadow: `0 1px 3px rgba(0,0,0,${dark ? '0.1' : '0.01'})` }}>
                   <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: t.text, marginBottom: 2 }}>{p.Name || 'Unknown'}</div>
                   {p.Company && <div style={{ fontSize: 10, color: t.textSoft, marginBottom: 8 }}>{p.Company}</div>}
