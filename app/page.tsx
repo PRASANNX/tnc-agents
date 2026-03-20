@@ -1,9 +1,30 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
-type AgentId = 'leadgen' | 'sales' | 'insights' | 'marketing' | 'operations' | 'finance' | 'product';
+type AgentId = 'master' | 'leadgen' | 'sales' | 'insights' | 'marketing' | 'operations' | 'finance' | 'product';
 interface Msg { id: string; role: 'user' | 'assistant'; text: string; time: string; }
 interface Prospect { Name?: string; Company?: string; Status?: string; Priority?: string; [key: string]: any; }
+
+const allAgentIds: AgentId[] = ['master', 'leadgen', 'sales', 'insights', 'marketing', 'operations', 'finance', 'product'];
+const chatAgentIds: AgentId[] = ['leadgen', 'sales', 'insights', 'marketing', 'operations', 'finance', 'product'];
+
+const masterPrompts = [
+  "/brief today — Get a full executive briefing on all agent activity",
+  "/trending — See what's working best right now across all agents",
+  "/gap — Find bottlenecks in your conversion funnel",
+  "/connect sales + marketing — See how these agents' insights overlap",
+  "/expert How should I price the premium listing tier?",
+  "/analyze onboarding across-team — Get all agents' perspective",
+  "What should I focus on today? Give me my top 3 priorities.",
+  "Are we on track for 50-80 onboardings? Show me the numbers.",
+  "Which agent type is giving me the best ROI right now?",
+  "What are the biggest risks to our 3-month plan?",
+  "Show me a weekly scorecard — what metrics should I track?",
+  "If I could only do ONE thing this week, what should it be?",
+  "/connect leadgen + sales — Are we finding the right prospects?",
+  "/connect operations + finance — When should I hire help?",
+  "Give me a 30-60-90 day action plan with specific milestones."
+];
 
 const leadGenPrompts = [
   "Find 25 real estate agents in Indore with 5+ active listings. Who would benefit from TNC? Give me: name, company, why they fit, contact info, priority.",
@@ -24,164 +45,176 @@ const leadGenPrompts = [
 ];
 
 const salesPrompts = [
-  "I found these 5 prospects: 1. [Prospect A] - Developer 2. [Prospect B] - Broker 3. [Prospect C] - Architect 4. [Prospect D] - Designer 5. [Prospect E] - Consultant. Write personalized Instagram DMs for each. 3-4 sentences, conversational, no hype. Sign off as Prasann.",
-  "I have a list of 10 Scheme 78 developers. Analyze each one (pain points, fit with TNC). Write short Instagram DM for top 3 priority prospects. Make them feel special, not generic.",
-  "These 8 architects are my target. Analyze why each would benefit from designer credit on TNC. Write DMs highlighting that specific benefit. Personalize based on their portfolio style.",
-  "I found 12 premium brokers in Indore. Group them by: volume-focused vs quality-focused. Write DMs for quality-focused ones (our audience). Emphasize visibility to serious buyers.",
-  "Prospect said: 'Why should I trust a new platform?' How do I respond in a DM? Write a follow-up that addresses skepticism without over-promising.",
-  "Prospect replied: 'I'm already on 99acres and MagicBricks. What's different?' Write a DM response that positions TNC uniquely. Be confident but honest.",
-  "No reply from these 3 prospects after 3 days: [Prospect A], [Prospect B], [Prospect C]. Write follow-up DMs. Different angle - focus on what they're missing.",
-  "Prospect asked: 'How many buyers do you have?' Write a DM response that's honest about being early. Reframe early-stage as opportunity.",
-  "These 5 prospects showed interest but didn't reply to next message. Write nurture DMs that add value (not sales). Share a TNC insight that helps them.",
-  "I want to feature one of our early supporters on Instagram. Write a DM asking [Prospect Name] for an interview. Make it feel like an honor, not a ask.",
-  "Design a DM sequence (3 messages over 2 weeks) for cold outreach. Message 1: Intro (awareness) Message 2: Value add (consideration) Message 3: CTA (decision) For architects.",
-  "These 6 prospects are warm (replied once, then went quiet). Write re-engagement DMs. Show progress: mention how many properties we've listed, community growth, etc.",
-  "Create a DM template I can customize for different prospect types: Developers, Brokers, Architects, Designers, Investors. Highlight different TNC benefits. 3-4 sentences each.",
-  "I want to do a 'founding member' event/call with top 5 prospects. Write DMs inviting them. Make it sound exclusive and valuable.",
-  "What's our competitive advantage vs 99acres, MagicBricks, Square Yards? Write a DM response I can use when prospects ask. 3-4 sentences, confident but not arrogant."
+  "I found these 5 prospects: 1. [Prospect A] - Developer 2. [Prospect B] - Broker 3. [Prospect C] - Architect 4. [Prospect D] - Designer 5. [Prospect E] - Consultant. Write personalized Instagram DMs for each.",
+  "I have a list of 10 Scheme 78 developers. Analyze each one (pain points, fit with TNC). Write short Instagram DM for top 3 priority prospects.",
+  "These 8 architects are my target. Analyze why each would benefit from designer credit on TNC. Write DMs highlighting that specific benefit.",
+  "I found 12 premium brokers in Indore. Group them by: volume-focused vs quality-focused. Write DMs for quality-focused ones.",
+  "Prospect said: 'Why should I trust a new platform?' How do I respond in a DM? Write a follow-up that addresses skepticism.",
+  "Prospect replied: 'I'm already on 99acres and MagicBricks. What's different?' Write a DM response that positions TNC uniquely.",
+  "No reply from these 3 prospects after 3 days. Write follow-up DMs with a different angle — focus on what they're missing.",
+  "Prospect asked: 'How many buyers do you have?' Write a DM response that's honest about being early. Reframe as opportunity.",
+  "These 5 prospects showed interest but didn't reply to next message. Write nurture DMs that add value (not sales).",
+  "I want to feature one of our early supporters on Instagram. Write a DM asking them for an interview. Make it feel like an honor.",
+  "Design a DM sequence (3 messages over 2 weeks) for cold outreach to architects. Intro → Value → CTA.",
+  "These 6 prospects are warm (replied once, then went quiet). Write re-engagement DMs showing TNC's progress.",
+  "Create a DM template I can customize for different prospect types: Developers, Brokers, Architects, Designers, Investors.",
+  "I want to do a 'founding member' event with top 5 prospects. Write DMs inviting them. Make it feel exclusive.",
+  "What's our competitive advantage vs 99acres, MagicBricks, Square Yards? Write a DM response for when prospects ask."
 ];
 
 const insightsPrompts = [
-  "Give me a full pipeline status report. How many prospects at each stage? Where are the bottlenecks? What should I focus on this week?",
-  "What's our conversion rate at each funnel stage? DM sent → Reply → Meeting → Onboarded. Which stage has the biggest drop-off and how do we fix it?",
-  "Which outreach channels are working best? Compare Instagram DMs vs referrals vs cold outreach. Where should I double down?",
-  "Are we on track for the 50-80 onboarding goal in 3 months? At current velocity, when will we hit it? What needs to change if we're behind?",
-  "Analyze our prospect data. Which TYPE of professional (developer, broker, architect) converts best? Should we shift our ICP focus?",
-  "Give me a SWOT analysis of TNC right now. Strengths, Weaknesses, Opportunities, Threats. Be brutally honest.",
-  "What are the top 3 risks to our 3-month plan? How do we mitigate each one? Give me specific action items.",
-  "Compare TNC's growth curve to similar Indian startups at the same stage (CRED, Meesho, NoBroker). Are we ahead or behind?",
-  "Which Indore neighborhoods are generating the most interest? Should we focus our efforts geographically?",
-  "Give me a weekly scorecard template I can fill in every Friday. What metrics should I track? What's green vs red?",
-  "Analyze the quality of our founding members so far. Are we attracting the right caliber of professionals?",
-  "What's the single most important thing I should do this week to move the needle? Just one thing, with full context on why.",
-  "If you could redesign our outreach strategy from scratch, what would you change? Be creative and unconventional.",
-  "What patterns do you see in prospects who say yes vs those who ghost? What can we learn?",
-  "Create a 30-60-90 day plan for TNC. Specific milestones, metrics, and action items for each period."
+  "Give me a full pipeline status report. How many prospects at each stage? Where are the bottlenecks?",
+  "What's our conversion rate at each funnel stage? DM sent → Reply → Meeting → Onboarded. Where's the biggest drop?",
+  "Which outreach channels are working best? Compare Instagram DMs vs referrals vs cold outreach.",
+  "Are we on track for the 50-80 onboarding goal in 3 months? At current velocity, when will we hit it?",
+  "Analyze our prospect data. Which TYPE of professional converts best? Should we shift our ICP focus?",
+  "Give me a SWOT analysis of TNC right now. Be brutally honest.",
+  "What are the top 3 risks to our 3-month plan? How do we mitigate each one?",
+  "Compare TNC's growth to similar Indian startups at the same stage (CRED, Meesho, NoBroker).",
+  "Which Indore neighborhoods are generating the most interest? Should we focus geographically?",
+  "Give me a weekly scorecard template. What metrics should I track? What's green vs red?",
+  "Analyze the quality of our founding members. Are we attracting the right caliber of professionals?",
+  "What's the single most important thing I should do this week to move the needle?",
+  "If you could redesign our outreach strategy from scratch, what would you change?",
+  "What patterns do you see in prospects who say yes vs those who ghost?",
+  "Create a 30-60-90 day plan for TNC with specific milestones and action items."
 ];
 
 const marketingPrompts = [
-  "Create a full Instagram content calendar for this week. 5 posts with exact captions, hashtags, and post type (Reel/Carousel/Static). TNC brand voice.",
-  "Write 3 Instagram Reel scripts for property showcases. Make them feel like Architectural Digest, not 99acres. Include hook, content, and CTA.",
-  "Design a 'Property of the Week' series format. How should we shoot it, caption it, and promote it? Make professionals WANT to be featured.",
-  "What Instagram hashtags should TNC be using? Give me 30 hashtags in 3 tiers: high-volume, medium-niche, and TNC-branded.",
-  "Plan a guerrilla marketing campaign for TNC with ₹0 budget. How do we create buzz in Indore's real estate community without spending a rupee?",
-  "Create a brand voice guide for TNC. How should we sound on Instagram? What words do we use and avoid? Give me 10 example captions.",
-  "Identify 10 Indore-based Instagram accounts we should collaborate with. Food, lifestyle, architecture, design pages. Why each one and how to approach them.",
-  "Plan our Diwali campaign (peak real estate season). Content series, special offers for founding members, festive property showcases.",
-  "Write a compelling Instagram bio for @theneighbourhoodcollective.in. 150 characters, premium feel, clear value proposition.",
-  "Design a referral program for founding members. How do we incentivize them to bring in other professionals? Make it feel exclusive, not MLM.",
-  "What content should our Instagram Stories strategy be? Daily plan: behind-the-scenes, polls, Q&As, property sneak peeks. Be specific.",
-  "Create a 'Neighbourhood Guide' series concept for Scheme 78. What should it include? Architecture, cafes, lifestyle, property trends.",
-  "How do we position TNC against 99acres and MagicBricks in our marketing? What's our core messaging? Give me 3 positioning statements.",
-  "Plan a launch event for TNC (virtual or in-person in Indore). Theme, agenda, invitees, promotion strategy. Budget: ₹5k max.",
-  "What metrics should I track weekly for our Instagram growth? Give me a dashboard template with targets for followers, engagement, saves, DMs."
+  "Create a full Instagram content calendar for this week. 5 posts with captions, hashtags, and post type.",
+  "Write 3 Instagram Reel scripts for property showcases. Architectural Digest quality, not 99acres.",
+  "Design a 'Property of the Week' series format. How should we shoot it, caption it, and promote it?",
+  "What Instagram hashtags should TNC use? Give me 30 hashtags in 3 tiers: high-volume, niche, branded.",
+  "Plan a guerrilla marketing campaign for TNC with ₹0 budget. How do we create buzz?",
+  "Create a brand voice guide for TNC. How should we sound? What words do we use vs avoid?",
+  "Identify 10 Indore-based Instagram accounts we should collaborate with and why.",
+  "Plan our Diwali campaign (peak real estate season). Content series and founding member specials.",
+  "Write a compelling Instagram bio for @theneighbourhoodcollective.in. 150 characters, premium feel.",
+  "Design a referral program for founding members. How do we incentivize them to bring others?",
+  "What should our Instagram Stories strategy be? Daily plan: behind-the-scenes, polls, Q&As.",
+  "Create a 'Neighbourhood Guide' series concept for Scheme 78. What should it include?",
+  "How do we position TNC against 99acres and MagicBricks? Give me 3 positioning statements.",
+  "Plan a launch event for TNC (virtual or in-person in Indore). Budget: ₹5k max.",
+  "What metrics should I track weekly for Instagram growth? Give me a dashboard template."
 ];
 
 const operationsPrompts = [
-  "Design the perfect onboarding flow for a new founding member. Day 0 to Day 7, what messages do they get? Make it feel personal and premium.",
-  "How's our community health right now? Based on what you know, what are the biggest risks to member satisfaction? How do we fix them?",
-  "Plan a 'Member of the Week' spotlight program. Format, questions to ask, how to feature them on Instagram, how to make them feel special.",
-  "Create a feedback survey for founding members. 5 key questions that help us improve TNC. Keep it short, make it feel like we genuinely care.",
-  "Design a WhatsApp group strategy for our founding members. How many groups? What rules? How do we keep conversations high-quality?",
-  "What should our member communication cadence be? Weekly updates? Monthly newsletters? What goes in each one?",
-  "Identify signs that a member is about to churn. What are the early warning signals? Create an intervention playbook for each signal.",
-  "Plan a virtual coffee chat event for our top 10 founding members. Format, duration, ice-breakers, agenda. Make it feel premium, not like a Zoom call.",
-  "Create a member success framework. What does 'success' look like for a developer vs a broker vs an architect on TNC? Different metrics for each.",
-  "How do we turn founding members into brand ambassadors? Design a program that makes them WANT to advocate for TNC without being asked.",
-  "Write welcome messages for 5 different professional types joining TNC. Developer, Broker, Architect, Designer, Consultant. Make each one specific to their world.",
-  "Create a community guidelines document for TNC. What behavior do we encourage? What do we not tolerate? Keep it human, not corporate.",
-  "Plan a monthly community report that we share with all members. What numbers, wins, and updates should it include? Make members feel proud to be part of TNC.",
-  "How do we handle negative feedback or complaints from members? Create a response framework. Always make them feel heard.",
-  "Design a member milestone celebration system. First listing, 10th listing, first inquiry received, 1-month anniversary. How do we celebrate each one?"
+  "Design the perfect onboarding flow for a new founding member. Day 0 to Day 7 messages.",
+  "How's our community health? What are the biggest risks to member satisfaction? How do we fix them?",
+  "Plan a 'Member of the Week' spotlight program. Format, questions, how to feature on Instagram.",
+  "Create a feedback survey for founding members. 5 key questions. Keep it short and genuine.",
+  "Design a WhatsApp group strategy for founding members. How many groups? What rules?",
+  "What should our member communication cadence be? Weekly updates? Monthly newsletters?",
+  "Identify signs that a member is about to churn. Create an intervention playbook.",
+  "Plan a virtual coffee chat for top 10 founding members. Format, ice-breakers, agenda.",
+  "Create a member success framework. What does 'success' look like per professional type?",
+  "How do we turn founding members into brand ambassadors? Design a program.",
+  "Write welcome messages for 5 different professional types joining TNC.",
+  "Create community guidelines for TNC. What behavior do we encourage? Keep it human.",
+  "Plan a monthly community report to share with all members. What should it include?",
+  "How do we handle negative feedback or complaints? Create a response framework.",
+  "Design a member milestone celebration system. First listing, 10th listing, anniversaries."
 ];
 
 const financePrompts = [
-  "What's our current financial health? Break down all expenses, revenue (if any), burn rate, and runway. Give me the honest picture.",
-  "Should I spend money on Instagram ads right now? Do an ROI analysis. What would ₹5k/month in ads realistically return?",
-  "Are we on track for our Phase 1 targets? 50-80 onboardings, ₹0-50k revenue. At current velocity, what's the forecast?",
-  "Calculate our unit economics. What's our CAC (cost per onboarding) right now? What should it be? How do we improve it?",
-  "Build a simple P&L (Profit & Loss) statement for TNC's first 3 months. What are all our costs vs potential revenue?",
-  "When should I start charging for listings? What's the optimal timing? Too early kills growth, too late burns money. Find the sweet spot.",
-  "What pricing should I set for premium listings? Research what 99acres, MagicBricks charge. What's TNC's pricing sweet spot for Indore market?",
-  "Do I need to register a company for TNC? What's the cheapest legal structure? LLP vs Pvt Ltd vs Proprietorship. Tax implications.",
-  "Create a financial dashboard I should check every week. What 5 numbers tell me if TNC is healthy or in trouble?",
-  "Should I hire someone? When does it make financial sense? What role should be my first hire and at what Indore salary range?",
-  "What free tools should I be using to save money? List all the free alternatives for CRM, email, analytics, design, hosting.",
-  "If I wanted to raise funding in 6 months, what metrics would Indian angel investors want to see? What's the minimum traction needed?",
-  "Calculate the total addressable market for TNC in Indore. How many premium professionals, how many transactions, what's the revenue potential?",
-  "What's the break-even point for TNC? How many paid listings do I need per month to cover all expenses?",
-  "Create a 12-month financial projection. Conservative, moderate, and optimistic scenarios. What does each path look like?"
+  "What's our current financial health? Break down expenses, revenue, burn rate, and runway.",
+  "Should I spend money on Instagram ads? ROI analysis for ₹5k/month in ads.",
+  "Are we on track for Phase 1 targets? 50-80 onboardings, ₹0-50k revenue forecast.",
+  "Calculate our unit economics. What's our CAC right now? What should it be?",
+  "Build a simple P&L statement for TNC's first 3 months.",
+  "When should I start charging for listings? Find the optimal timing sweet spot.",
+  "What pricing should I set for premium listings? Research competitors and Indore market.",
+  "Do I need to register a company? LLP vs Pvt Ltd vs Proprietorship. Tax implications.",
+  "Create a financial dashboard I should check weekly. 5 key health indicators.",
+  "Should I hire someone? When does it make financial sense? First hire role and salary?",
+  "What free tools should I use to save money? Free alternatives for CRM, email, analytics.",
+  "If I wanted to raise funding in 6 months, what metrics do Indian angels want to see?",
+  "Calculate the total addressable market for TNC in Indore. Revenue potential?",
+  "What's the break-even point? How many paid listings per month to cover expenses?",
+  "Create a 12-month financial projection. Conservative, moderate, optimistic scenarios."
 ];
 
 const productPrompts = [
-  "What should our product roadmap be for the next 3 months? Prioritize by impact. What builds moat vs what's nice-to-have?",
-  "Can we build a property submission form this week? What fields do we need? How should it work? Design the flow.",
-  "Should we add WhatsApp integration to the website? How? What would the user experience look like?",
-  "Evaluate our current tech stack (Next.js + Netlify + Google Sheets). What's working, what's breaking, what should we change?",
-  "Design the ideal property detail page. What information should it show? How should it look? What makes it better than 99acres?",
-  "When should we move from Google Sheets to a real database? What are our options? Supabase vs Firebase vs Airtable. Pros/cons for our scale.",
-  "What SEO strategy should we implement? What keywords should we target? How do we rank for 'premium property Indore'?",
-  "Should I build a mobile app? When? React Native vs Flutter vs PWA. Give me the honest answer for our current stage.",
-  "Design a professional profile page for TNC. What fields, what layout, what makes a broker want to fill it out completely?",
-  "What analytics should we implement on the website? What events should we track? Google Analytics vs Vercel Analytics vs Mixpanel.",
-  "How do we make the website faster for mobile users on slow 4G in India? Performance audit and specific recommendations.",
-  "Plan the 'Directory' feature. How should users browse professionals? Filter by type, area, specialty. Design the search experience.",
-  "What's our biggest technical debt right now? What will break first if we grow 10x? How do we fix it before it becomes a crisis?",
-  "Evaluate AI features we could add to TNC. Property recommendations, buyer matching, automated market reports. What's feasible and valuable?",
-  "If I could only build ONE new feature this month, what should it be? Use ICE scoring (Impact × Confidence × Ease). Show your work."
+  "What should our product roadmap be for 3 months? Prioritize by impact vs effort.",
+  "Can we build a property submission form this week? What fields? Design the flow.",
+  "Should we add WhatsApp integration? How? What would the UX look like?",
+  "Evaluate our tech stack (Next.js + Netlify + Google Sheets). What's working, what to change?",
+  "Design the ideal property detail page. What info, what layout, what beats 99acres?",
+  "When should we move from Google Sheets to a real database? Supabase vs Firebase vs Airtable.",
+  "What SEO strategy should we implement? Keywords to target for Indore real estate?",
+  "Should I build a mobile app? When? React Native vs Flutter vs PWA for our stage.",
+  "Design a professional profile page for TNC members. Fields, layout, motivation to fill.",
+  "What analytics should we implement? Google Analytics vs Vercel Analytics vs Mixpanel.",
+  "How do we make the website faster for mobile users on slow 4G? Performance recommendations.",
+  "Plan the 'Directory' feature. How should users browse professionals? Filters and search UX.",
+  "What's our biggest technical debt? What breaks first at 10x scale? How to fix it?",
+  "Evaluate AI features we could add. Property recommendations, buyer matching, market reports.",
+  "If I could only build ONE feature this month, what should it be? Use ICE scoring."
 ];
 
-const agents: Record<AgentId, { name: string; icon: string; title: string; desc: string; prompts: string[] }> = {
-  leadgen: { 
-    name: 'Lead Gen', icon: '✦', title: 'Head of Lead Generation', desc: 'Finds qualified real estate professionals in Indore', 
-    prompts: leadGenPrompts 
+const agents: Record<AgentId, { name: string; icon: string; title: string; desc: string; prompts: string[]; color?: string }> = {
+  master: {
+    name: 'Command Center', icon: '🎛️', title: 'Executive Dashboard', desc: 'Full team visibility, cross-agent intelligence & CEO briefings',
+    prompts: masterPrompts, color: '#B8860B'
   },
-  sales: { 
-    name: 'Sales', icon: '✧', title: 'Head of Partnerships & Revenue', desc: 'Qualifies prospects & writes personalized Instagram DMs', 
-    prompts: salesPrompts 
-  },
-  insights: { 
-    name: 'Insights', icon: '⟡', title: 'Strategic Advisor', desc: 'Analyzes funnel patterns & gives strategic advice', 
-    prompts: insightsPrompts 
-  },
-  marketing: {
-    name: 'Marketing', icon: '◆', title: 'Head of Growth & Marketing', desc: 'Builds brand awareness, content strategy & community',
-    prompts: marketingPrompts
-  },
-  operations: {
-    name: 'Operations', icon: '◇', title: 'Head of Ops & Community', desc: 'Manages onboarding, engagement & member success',
-    prompts: operationsPrompts
-  },
-  finance: {
-    name: 'Finance', icon: '▣', title: 'CFO & Analytics', desc: 'Tracks metrics, runway, unit economics & financial health',
-    prompts: financePrompts
-  },
-  product: {
-    name: 'Product', icon: '⬡', title: 'Head of Product & Tech', desc: 'Defines product roadmap & technical strategy',
-    prompts: productPrompts
-  },
+  leadgen: { name: 'Lead Gen', icon: '✦', title: 'Head of Lead Generation', desc: 'Finds qualified real estate professionals in Indore', prompts: leadGenPrompts },
+  sales: { name: 'Sales', icon: '✧', title: 'Head of Partnerships & Revenue', desc: 'Qualifies prospects & writes personalized Instagram DMs', prompts: salesPrompts },
+  insights: { name: 'Insights', icon: '⟡', title: 'Strategic Advisor', desc: 'Analyzes funnel patterns & gives strategic advice', prompts: insightsPrompts },
+  marketing: { name: 'Marketing', icon: '◆', title: 'Head of Growth & Marketing', desc: 'Builds brand awareness, content strategy & community', prompts: marketingPrompts },
+  operations: { name: 'Operations', icon: '◇', title: 'Head of Ops & Community', desc: 'Manages onboarding, engagement & member success', prompts: operationsPrompts },
+  finance: { name: 'Finance', icon: '▣', title: 'CFO & Analytics', desc: 'Tracks metrics, runway, unit economics & financial health', prompts: financePrompts },
+  product: { name: 'Product', icon: '⬡', title: 'Head of Product & Tech', desc: 'Defines product roadmap & technical strategy', prompts: productPrompts },
 };
 
-const allAgentIds: AgentId[] = ['leadgen', 'sales', 'insights', 'marketing', 'operations', 'finance', 'product'];
+// localStorage helpers
+const STORAGE_KEY = 'tnc-agent-chats';
+function saveChats(chats: Record<AgentId, Msg[]>) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chats)); } catch {}
+}
+function loadChats(): Record<AgentId, Msg[]> | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return null;
+}
+
+function buildCrossAgentContext(chats: Record<AgentId, Msg[]>): string {
+  const summaries: string[] = [];
+  for (const id of chatAgentIds) {
+    const msgs = chats[id];
+    if (msgs.length === 0) continue;
+    const recent = msgs.slice(-6);
+    const agentName = agents[id].name;
+    const lines = recent.map(m => `  ${m.role === 'user' ? 'Prasann' : agentName}: ${m.text.substring(0, 200)}${m.text.length > 200 ? '...' : ''}`).join('\n');
+    summaries.push(`--- ${agentName} Agent (${msgs.length} messages) ---\n${lines}`);
+  }
+  return summaries.length > 0 ? summaries.join('\n\n') : 'No agent conversations yet. This is a fresh session.';
+}
+
+function initChats(): Record<AgentId, Msg[]> {
+  const init: Record<string, Msg[]> = {};
+  allAgentIds.forEach(id => { init[id] = []; });
+  return init as Record<AgentId, Msg[]>;
+}
+
+function initIndices(): Record<AgentId, number> {
+  const init: Record<string, number> = {};
+  allAgentIds.forEach(id => { init[id] = 0; });
+  return init as Record<AgentId, number>;
+}
 
 export default function AgentDashboard() {
-  const [active, setActive] = useState<AgentId>('leadgen');
-  const [chats, setChats] = useState<Record<AgentId, Msg[]>>(() => {
-    const init: Record<string, Msg[]> = {};
-    allAgentIds.forEach(id => { init[id] = []; });
-    return init as Record<AgentId, Msg[]>;
-  });
-  const [promptIndices, setPromptIndices] = useState<Record<AgentId, number>>(() => {
-    const init: Record<string, number> = {};
-    allAgentIds.forEach(id => { init[id] = 0; });
-    return init as Record<AgentId, number>;
-  });
+  const [active, setActive] = useState<AgentId>('master');
+  const [chats, setChats] = useState<Record<AgentId, Msg[]>>(initChats);
+  const [promptIndices, setPromptIndices] = useState<Record<AgentId, number>>(initIndices);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [crm, setCrm] = useState<Prospect[]>([]);
   const [showCrm, setShowCrm] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -194,21 +227,66 @@ export default function AgentDashboard() {
 
   const BORDER_COLOR = '#EAE1D9';
   const PRIMARY_COLOR = '#556A3E';
+  const MASTER_COLOR = '#B8860B';
+  const activeColor = active === 'master' ? MASTER_COLOR : PRIMARY_COLOR;
+
+  // Hydrate chats from localStorage
+  useEffect(() => {
+    const saved = loadChats();
+    if (saved) {
+      // Merge saved chats with init to ensure all keys exist
+      const merged = initChats();
+      for (const key of allAgentIds) {
+        if (saved[key]) merged[key] = saved[key];
+      }
+      setChats(merged);
+    }
+    setHydrated(true);
+  }, []);
+
+  // Save chats to localStorage whenever they change
+  useEffect(() => {
+    if (hydrated) saveChats(chats);
+  }, [chats, hydrated]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs]);
   useEffect(() => { inputRef.current?.focus(); }, [active]);
   
   const fetchCrm = async () => { try { const r = await fetch('/api/sheets'); const d = await r.json(); setCrm(d.rows || []); } catch { } };
   useEffect(() => { fetchCrm(); }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) {
+        const num = parseInt(e.key);
+        if (num >= 1 && num <= 8) {
+          e.preventDefault();
+          setActive(allAgentIds[num - 1]);
+        }
+        if (e.key === 'k') {
+          e.preventDefault();
+          setChats(p => ({ ...p, [active]: [] }));
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [active]);
   
-  const send = async (text: string) => {
+  const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
     const userMsg: Msg = { id: 'u-' + Date.now(), role: 'user', text: text.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
     setChats(p => ({ ...p, [active]: [...p[active], userMsg] }));
     setInput('');
     setLoading(true);
     try {
-      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, agent: active, history: chats[active].map(m => ({ role: m.role, content: m.text })) }) });
+      const body: any = { message: text, agent: active, history: chats[active].map(m => ({ role: m.role, content: m.text })) };
+      // For master agent, include cross-agent context
+      if (active === 'master') {
+        body.crossAgentContext = buildCrossAgentContext(chats);
+      }
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
       const botMsg: Msg = { id: 'a-' + Date.now(), role: 'assistant', text: d.response || d.error || 'No response received.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       setChats(p => ({ ...p, [active]: [...p[active], botMsg] }));
@@ -217,14 +295,25 @@ export default function AgentDashboard() {
       const errMsg: Msg = { id: 'e-' + Date.now(), role: 'assistant', text: 'Connection failed. Make sure the server is running.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; 
       setChats(p => ({ ...p, [active]: [...p[active], errMsg] })); 
     } finally { setLoading(false); }
-  };
+  }, [active, chats, loading]);
   
   const copyText = (text: string, id: string) => { navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(null), 2000); };
   const clearChat = () => { setChats(p => ({ ...p, [active]: [] })); };
 
+  // Count total messages across all agents for master dashboard
+  const totalMessages = Object.values(chats).reduce((sum, msgs) => sum + msgs.length, 0);
+  const activeAgentCount = chatAgentIds.filter(id => chats[id].length > 0).length;
+
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .msg-anim { animation: fadeInUp 0.3s ease forwards; }
+        .typing-pulse { animation: pulse 1.5s ease-in-out infinite; }
         .prompt-btn {
           padding: 8px 12px;
           border-radius: 6px;
@@ -233,13 +322,13 @@ export default function AgentDashboard() {
           color: #2D2D2D;
           font-size: 12px;
           cursor: pointer;
-          transition: background 0.2s ease, transform 0.1s ease;
+          transition: all 0.2s ease;
           text-align: left;
           flex: 1 1 calc(50% - 16px);
-          min-width: 250px;
+          min-width: 220px;
           line-height: 1.4;
         }
-        .prompt-btn:hover { background: #efefea; }
+        .prompt-btn:hover { background: #efefea; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
         .prompt-btn:active { transform: scale(0.98); }
         .refresh-btn {
           padding: 6px 14px;
@@ -257,41 +346,57 @@ export default function AgentDashboard() {
         .sidebar-scroll::-webkit-scrollbar { width: 4px; }
         .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
         .sidebar-scroll::-webkit-scrollbar-thumb { background: #EAE1D9; border-radius: 4px; }
+        .agent-btn { transition: all 0.15s ease; }
+        .agent-btn:hover { background: #F9F7F5 !important; }
+        .slash-cmd { color: #B8860B; font-weight: 600; }
+        @media (max-width: 768px) {
+          .desktop-sidebar { display: none !important; }
+          .mobile-full { width: 100% !important; }
+          .prompt-btn { min-width: 100% !important; flex: 1 1 100% !important; }
+        }
       `}} />
       <div style={{ display: 'flex', height: '100vh', background: '#FCFAF8', color: '#2D2D2D', fontFamily: 'var(--font-montserrat), sans-serif' }}>
         
         {/* LEFT SIDEBAR */}
         {sidebarOpen && (
-          <div style={{ width: 280, borderRight: `1px solid ${BORDER_COLOR}`, display: 'flex', flexDirection: 'column', background: '#FFFFFF', flexShrink: 0 }}>
-            <div style={{ padding: '28px 24px', borderBottom: `1px solid ${BORDER_COLOR}` }}>
-              <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 32, color: PRIMARY_COLOR, lineHeight: 1 }}>TNC</div>
-              <div style={{ fontSize: 10, color: '#888', marginTop: 6, letterSpacing: 1.5, textTransform: 'uppercase' }}>Your Executive Team</div>
+          <div className="desktop-sidebar" style={{ width: 280, borderRight: `1px solid ${BORDER_COLOR}`, display: 'flex', flexDirection: 'column', background: '#FFFFFF', flexShrink: 0 }}>
+            <div style={{ padding: '24px 20px', borderBottom: `1px solid ${BORDER_COLOR}` }}>
+              <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: PRIMARY_COLOR, lineHeight: 1 }}>TNC</div>
+              <div style={{ fontSize: 9, color: '#888', marginTop: 5, letterSpacing: 1.5, textTransform: 'uppercase' }}>Executive Team · {totalMessages} messages</div>
             </div>
-            <div className="sidebar-scroll" style={{ padding: '8px 12px', flex: 1, overflowY: 'auto' }}>
-              <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#888', letterSpacing: 2, padding: '10px 8px 6px', fontWeight: 500 }}>The Team</div>
-              {allAgentIds.map(id => {
+            <div className="sidebar-scroll" style={{ padding: '6px 10px', flex: 1, overflowY: 'auto' }}>
+              {allAgentIds.map((id, idx) => {
                 const ag = agents[id];
                 const isActive = active === id;
+                const isMaster = id === 'master';
+                const msgCount = chats[id].length;
+                const accentColor = isMaster ? MASTER_COLOR : PRIMARY_COLOR;
                 return (
-                  <button 
-                    key={id} onClick={() => setActive(id)} 
-                    style={{ 
-                      width: '100%', padding: '10px 12px', margin: '2px 0', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, 
-                      background: isActive ? '#F6F8F3' : 'transparent', 
-                      borderLeft: `3px solid ${isActive ? PRIMARY_COLOR : 'transparent'}`,
-                      transition: 'all 0.2s ease'
-                    }}>
-                    <span style={{ fontSize: 16, color: isActive ? PRIMARY_COLOR : '#AAA', flexShrink: 0 }}>{ag.icon}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 16, color: isActive ? '#2D2D2D' : '#666', fontStyle: isActive ? 'italic' : 'normal' }}>{ag.name}</div>
-                      <div style={{ fontSize: 9, color: '#888', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ag.title}</div>
-                    </div>
-                  </button>
+                  <div key={id}>
+                    {isMaster && <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#888', letterSpacing: 2, padding: '8px 8px 4px', fontWeight: 500 }}>Command</div>}
+                    {idx === 1 && <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#888', letterSpacing: 2, padding: '12px 8px 4px', fontWeight: 500, borderTop: `1px solid ${BORDER_COLOR}`, marginTop: 4 }}>The Team</div>}
+                    <button 
+                      className="agent-btn"
+                      onClick={() => setActive(id)} 
+                      style={{ 
+                        width: '100%', padding: '9px 10px', margin: '1px 0', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, 
+                        background: isActive ? (isMaster ? '#FFF8E7' : '#F6F8F3') : 'transparent', 
+                        borderLeft: `3px solid ${isActive ? accentColor : 'transparent'}`,
+                      }}>
+                      <span style={{ fontSize: 15, color: isActive ? accentColor : '#AAA', flexShrink: 0 }}>{ag.icon}</span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: isActive ? '#2D2D2D' : '#666', fontStyle: isActive ? 'italic' : 'normal' }}>{ag.name}</div>
+                        <div style={{ fontSize: 9, color: '#999', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ag.title}</div>
+                      </div>
+                      {msgCount > 0 && <span style={{ fontSize: 9, background: isMaster ? '#FFF3D0' : '#F0F4ED', color: isMaster ? MASTER_COLOR : PRIMARY_COLOR, padding: '2px 6px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>{msgCount}</span>}
+                    </button>
+                  </div>
                 );
               })}
             </div>
-            <div style={{ padding: '12px', borderTop: `1px solid ${BORDER_COLOR}` }}>
-              <button onClick={() => { setShowCrm(!showCrm); if (!showCrm) fetchCrm(); }} style={{ width: '100%', padding: '10px', borderRadius: 8, border: `1px solid ${BORDER_COLOR}`, background: showCrm ? '#F6F8F3' : '#FFFFFF', color: '#444', cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
+            <div style={{ padding: '8px 10px', borderTop: `1px solid ${BORDER_COLOR}`, fontSize: 9, color: '#999', textAlign: 'center' }}>
+              <div style={{ marginBottom: 6 }}>⌘1-8 switch agents · ⌘K clear</div>
+              <button onClick={() => { setShowCrm(!showCrm); if (!showCrm) fetchCrm(); }} style={{ width: '100%', padding: '8px', borderRadius: 6, border: `1px solid ${BORDER_COLOR}`, background: showCrm ? '#F6F8F3' : '#FFFFFF', color: '#444', cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
                 {showCrm ? 'Close CRM' : `View CRM (${crm.length})`}
               </button>
             </div>
@@ -299,130 +404,148 @@ export default function AgentDashboard() {
         )}
 
         {/* MAIN CHAT AREA */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#FCFAF8' }}>
-          <div style={{ padding: '16px 32px', borderBottom: `1px solid ${BORDER_COLOR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="mobile-full" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#FCFAF8' }}>
+          {/* HEADER */}
+          <div style={{ padding: '14px 24px', borderBottom: `1px solid ${BORDER_COLOR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: active === 'master' ? '#FFFCF5' : '#FFFFFF' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 18, padding: 0 }}>☰</button>
-              <span style={{ fontSize: 22, color: PRIMARY_COLOR }}>{a.icon}</span>
+              <span style={{ fontSize: 20, color: activeColor }}>{a.icon}</span>
               <div>
-                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 22, color: '#2D2D2D', fontStyle: 'italic' }}>{a.name}</div>
-                <div style={{ fontSize: 11, color: '#888' }}>{a.desc}</div>
+                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 20, color: '#2D2D2D', fontStyle: 'italic' }}>{a.name}</div>
+                <div style={{ fontSize: 10, color: '#888' }}>{a.desc}</div>
               </div>
             </div>
-            {msgs.length > 0 && (
-              <button onClick={clearChat} style={{ padding: '5px 12px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FFFFFF', color: '#666', fontSize: 10, cursor: 'pointer', transition: 'all 0.2s ease' }}>Clear chat</button>
-            )}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {active === 'master' && activeAgentCount > 0 && (
+                <span style={{ fontSize: 10, background: '#FFF3D0', color: MASTER_COLOR, padding: '3px 10px', borderRadius: 12, fontWeight: 500 }}>{activeAgentCount}/7 agents active</span>
+              )}
+              {msgs.length > 0 && (
+                <button onClick={clearChat} style={{ padding: '5px 12px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FFFFFF', color: '#666', fontSize: 10, cursor: 'pointer', transition: 'all 0.2s ease' }}>Clear</button>
+              )}
+            </div>
           </div>
           
-          <div style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+          {/* MESSAGES */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
             {msgs.length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 24 }}>
-                <div style={{ fontSize: 64, color: PRIMARY_COLOR, opacity: 0.2 }}>{a.icon}</div>
-                <div style={{ textAlign: 'center', maxWidth: 460 }}>
-                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 32, color: '#2D2D2D', marginBottom: 12 }}>Speak with {a.name}</div>
-                  <div style={{ fontSize: 14, color: '#666', lineHeight: 1.6 }}>{a.desc}. Try a suggestion below to begin.</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20 }}>
+                <div style={{ fontSize: 56, color: activeColor, opacity: 0.15 }}>{a.icon}</div>
+                <div style={{ textAlign: 'center', maxWidth: 500 }}>
+                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: '#2D2D2D', marginBottom: 10 }}>
+                    {active === 'master' ? 'Master Command Center' : `Speak with ${a.name}`}
+                  </div>
+                  <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+                    {active === 'master' 
+                      ? 'Your executive dashboard with full cross-agent visibility. Use slash commands like /brief, /trending, or /connect to unlock intelligence.'
+                      : `${a.desc}. Try a suggestion below to begin.`
+                    }
+                  </div>
+                  {active === 'master' && (
+                    <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+                      {['/brief', '/trending', '/gap', '/connect', '/expert', '/analyze'].map(cmd => (
+                        <span key={cmd} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 12, background: '#FFF3D0', color: MASTER_COLOR, fontWeight: 600, fontFamily: 'monospace' }}>{cmd}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
                 {msgs.map(m => (
-                  <div key={m.id} style={{ marginBottom: 24, display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                    <div style={{ fontSize: 11, color: '#888', marginBottom: 6, margin: '0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>{m.role === 'user' ? 'Prasann' : a.name} <span style={{ opacity: 0.5, margin: '0 4px' }}>|</span> {m.time}</div>
+                  <div key={m.id} className="msg-anim" style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ fontSize: 10, color: '#888', marginBottom: 5, margin: '0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>{m.role === 'user' ? 'Prasann' : a.name} <span style={{ opacity: 0.4, margin: '0 3px' }}>·</span> {m.time}</div>
                     <div style={{ 
-                      position: 'relative', maxWidth: '85%', padding: '16px 20px', 
-                      borderRadius: m.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px', 
-                      background: m.role === 'user' ? PRIMARY_COLOR : '#FFFFFF', 
-                      border: m.role === 'user' ? `1px solid ${PRIMARY_COLOR}` : `1px solid ${BORDER_COLOR}`, 
-                      fontSize: 14, lineHeight: 1.7, color: m.role === 'user' ? '#FFFFFF' : '#333', 
+                      position: 'relative', maxWidth: '85%', padding: '14px 18px', 
+                      borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', 
+                      background: m.role === 'user' ? activeColor : '#FFFFFF', 
+                      border: m.role === 'user' ? 'none' : `1px solid ${BORDER_COLOR}`, 
+                      fontSize: 13, lineHeight: 1.7, color: m.role === 'user' ? '#FFFFFF' : '#333', 
                       whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+                      boxShadow: m.role === 'user' ? '0 2px 8px rgba(0,0,0,0.08)' : '0 1px 4px rgba(0,0,0,0.02)'
                     }}>
                       {m.text}
                       {m.role === 'assistant' && (
-                        <button onClick={() => copyText(m.text, m.id)} title="Copy response" style={{ position: 'absolute', top: 12, right: 12, padding: '4px 8px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: PRIMARY_COLOR, fontSize: 10, cursor: 'pointer' }}>
-                          {copied === m.id ? 'Copied' : 'Copy'}
+                        <button onClick={() => copyText(m.text, m.id)} title="Copy response" style={{ position: 'absolute', top: 10, right: 10, padding: '3px 8px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: activeColor, fontSize: 10, cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                          {copied === m.id ? '✓' : 'Copy'}
                         </button>
                       )}
                     </div>
                   </div>
                 ))}
-                {loading && <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 8px', color: PRIMARY_COLOR, fontSize: 13, fontStyle: 'italic' }}><span>{a.icon}</span> {a.name} is typing...</div>}
+                {loading && <div className="typing-pulse" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', color: activeColor, fontSize: 13, fontStyle: 'italic' }}><span>{a.icon}</span> {a.name} is thinking...</div>}
                 <div ref={endRef} />
               </div>
             )}
           </div>
           
-          <div style={{ padding: '20px 32px', background: '#FFFFFF', borderTop: `1px solid ${BORDER_COLOR}` }}>
+          {/* INPUT AREA */}
+          <div style={{ padding: '16px 24px', background: active === 'master' ? '#FFFCF5' : '#FFFFFF', borderTop: `1px solid ${BORDER_COLOR}` }}>
             <div style={{ maxWidth: 800, margin: '0 auto' }}>
               
               {/* SUGGESTION CARDS */}
               {msgs.length === 0 && (
-                <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: '#666', letterSpacing: 1, textTransform: 'uppercase' }}>💡 Quick Suggestions</div>
+                <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#666', letterSpacing: 1, textTransform: 'uppercase' }}>
+                      {active === 'master' ? '🎛️ Commands & Queries' : '💡 Quick Suggestions'}
+                    </div>
                     {hasMorePrompts && (
-                      <button 
-                        className="refresh-btn"
-                        onClick={() => {
-                          setPromptIndices(prev => ({
-                            ...prev,
-                            [active]: prev[active] + 4 >= currentPrompts.length ? 0 : prev[active] + 4
-                          }));
-                        }}
-                      >⟳ Refresh</button>
+                      <button className="refresh-btn" onClick={() => {
+                        setPromptIndices(prev => ({ ...prev, [active]: prev[active] + 4 >= currentPrompts.length ? 0 : prev[active] + 4 }));
+                      }}>⟳ Refresh</button>
                     )}
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                     {visiblePrompts.map((p, i) => (
-                      <button key={i} className="prompt-btn" onClick={() => setInput(p)}>
-                        {p.length > 80 ? p.substring(0, 77) + '...' : p}
+                      <button key={i} className="prompt-btn" onClick={() => setInput(p)} style={active === 'master' ? { borderColor: '#E8D9A0', background: '#FFFCF5' } : {}}>
+                        {p.length > 85 ? p.substring(0, 82) + '...' : p}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                 <textarea 
                   ref={inputRef} value={input} onChange={e => setInput(e.target.value)} 
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }} 
-                  placeholder={`Message ${a.name}...`} rows={1} 
-                  style={{ flex: 1, padding: '14px 20px', borderRadius: 12, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: '#2D2D2D', fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 150, lineHeight: 1.5, transition: 'border-color 0.2s ease' }} 
+                  placeholder={active === 'master' ? 'Type a command (/brief, /trending...) or ask anything...' : `Message ${a.name}...`} rows={1} 
+                  style={{ flex: 1, padding: '12px 18px', borderRadius: 12, border: `1px solid ${active === 'master' ? '#E8D9A0' : BORDER_COLOR}`, background: active === 'master' ? '#FFFDF7' : '#FCFAF8', color: '#2D2D2D', fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 150, lineHeight: 1.5, transition: 'border-color 0.2s ease' }} 
                 />
                 <button 
                   onClick={() => send(input)} disabled={loading || !input.trim()} 
-                  style={{ padding: '14px 28px', borderRadius: 12, border: 'none', background: PRIMARY_COLOR, color: '#FFFFFF', fontSize: 14, fontWeight: 500, cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', opacity: loading || !input.trim() ? 0.5 : 1, transition: 'opacity 0.2s ease' }}>
+                  style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: activeColor, color: '#FFFFFF', fontSize: 14, fontWeight: 500, cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', opacity: loading || !input.trim() ? 0.5 : 1, transition: 'all 0.2s ease' }}>
                   {loading ? '...' : 'Send'}
                 </button>
               </div>
-              <div style={{ fontSize: 10, color: '#888', textAlign: 'center', marginTop: 10, letterSpacing: 0.5 }}>Shift+Enter for new line <span style={{ margin: '0 8px', opacity: 0.3 }}>|</span> Enter to send</div>
+              <div style={{ fontSize: 9, color: '#999', textAlign: 'center', marginTop: 8, letterSpacing: 0.5 }}>⇧Enter new line · Enter send · ⌘1-8 agents · ⌘K clear</div>
             </div>
           </div>
         </div>
 
         {/* RIGHT CRM SIDEBAR */}
         {showCrm && (
-          <div style={{ width: 320, borderLeft: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', overflowY: 'auto', flexShrink: 0 }}>
-            <div style={{ padding: '20px', borderBottom: `1px solid ${BORDER_COLOR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 10 }}>
+          <div className="desktop-sidebar" style={{ width: 300, borderLeft: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', overflowY: 'auto', flexShrink: 0 }}>
+            <div style={{ padding: '16px', borderBottom: `1px solid ${BORDER_COLOR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 10 }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 20, color: '#2D2D2D' }}>CRM Directory</div>
-                <div style={{ fontSize: 10, color: '#888', marginTop: 3 }}>{crm.length} Prospects Found</div>
+                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 18, color: '#2D2D2D' }}>CRM</div>
+                <div style={{ fontSize: 9, color: '#888', marginTop: 2 }}>{crm.length} Prospects</div>
               </div>
-              <button onClick={fetchCrm} style={{ padding: '5px 10px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: PRIMARY_COLOR, fontSize: 11, cursor: 'pointer' }}>Sync</button>
+              <button onClick={fetchCrm} style={{ padding: '4px 8px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: PRIMARY_COLOR, fontSize: 10, cursor: 'pointer' }}>Sync</button>
             </div>
-            <div style={{ padding: '12px' }}>
+            <div style={{ padding: '10px' }}>
               {crm.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#888', fontSize: 13, lineHeight: 1.6 }}>
-                  <div style={{ fontSize: 40, marginBottom: 16, color: BORDER_COLOR }}>📭</div>
+                <div style={{ textAlign: 'center', padding: '48px 16px', color: '#888', fontSize: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 36, marginBottom: 12, color: BORDER_COLOR }}>📭</div>
                   No prospects connected yet.
                 </div>
               ) : crm.map((p, i) => (
-                <div key={i} style={{ padding: '14px', borderRadius: 8, border: `1px solid ${BORDER_COLOR}`, marginBottom: 10, background: '#FFFFFF', boxShadow: '0 2px 6px rgba(0,0,0,0.015)' }}>
-                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 16, color: '#2D2D2D', marginBottom: 3 }}>{p.Name || 'Unknown Prospect'}</div>
-                  {p.Company && <div style={{ fontSize: 11, color: '#666', marginBottom: 10 }}>{p.Company}</div>}
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {p.Status && <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, padding: '3px 8px', borderRadius: 20, background: '#F6F8F3', color: PRIMARY_COLOR, border: `1px solid ${PRIMARY_COLOR}30` }}>{p.Status}</span>}
-                    {p.Priority && <span style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.5, padding: '3px 8px', borderRadius: 20, background: p.Priority === 'HIGH' ? PRIMARY_COLOR : '#F5F5F5', color: p.Priority === 'HIGH' ? '#FFF' : '#666', border: 'none' }}>{p.Priority} Priority</span>}
+                <div key={i} style={{ padding: '12px', borderRadius: 6, border: `1px solid ${BORDER_COLOR}`, marginBottom: 8, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
+                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: '#2D2D2D', marginBottom: 2 }}>{p.Name || 'Unknown'}</div>
+                  {p.Company && <div style={{ fontSize: 10, color: '#666', marginBottom: 8 }}>{p.Company}</div>}
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {p.Status && <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 6px', borderRadius: 12, background: '#F6F8F3', color: PRIMARY_COLOR, border: `1px solid ${PRIMARY_COLOR}30` }}>{p.Status}</span>}
+                    {p.Priority && <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 6px', borderRadius: 12, background: p.Priority === 'HIGH' ? PRIMARY_COLOR : '#F5F5F5', color: p.Priority === 'HIGH' ? '#FFF' : '#666' }}>{p.Priority}</span>}
                   </div>
                 </div>
               ))}
