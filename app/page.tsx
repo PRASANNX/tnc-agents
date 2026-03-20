@@ -204,6 +204,35 @@ function initIndices(): Record<AgentId, number> {
   return init as Record<AgentId, number>;
 }
 
+const themes = {
+  light: {
+    bg: '#FCFAF8', bgCard: '#FFFFFF', bgInput: '#FCFAF8', bgSidebar: '#FFFFFF',
+    text: '#2D2D2D', textSoft: '#666', textMuted: '#888', textFaint: '#999',
+    border: '#EAE1D9', primary: '#556A3E', master: '#B8860B',
+    masterBg: '#FFFCF5', masterBadge: '#FFF3D0', masterInput: '#FFFDF7', masterInputBorder: '#E8D9A0',
+    agentActiveBg: '#F6F8F3', agentBadgeBg: '#F0F4ED',
+    promptBg: '#FFFFFF', promptBorder: '#e8e8e3', promptHover: '#efefea',
+    refreshBg: '#F6F8F3',
+    msgBotBg: '#FFFFFF', msgBotBorder: '#EAE1D9',
+    copyBg: '#FCFAF8', copyBorder: '#EAE1D9',
+    scrollThumb: '#EAE1D9',
+    shortcutText: '#999',
+  },
+  dark: {
+    bg: '#1A1A1F', bgCard: '#242429', bgInput: '#1E1E24', bgSidebar: '#1E1E24',
+    text: '#E8E4DF', textSoft: '#A8A4A0', textMuted: '#787470', textFaint: '#585450',
+    border: '#333338', primary: '#7FA668', master: '#D4A843',
+    masterBg: '#22201A', masterBadge: '#332E1A', masterInput: '#22201A', masterInputBorder: '#4A4030',
+    agentActiveBg: '#252A22', agentBadgeBg: '#2A3025',
+    promptBg: '#242429', promptBorder: '#333338', promptHover: '#2E2E34',
+    refreshBg: '#252A22',
+    msgBotBg: '#242429', msgBotBorder: '#333338',
+    copyBg: '#1E1E24', copyBorder: '#333338',
+    scrollThumb: '#444448',
+    shortcutText: '#585450',
+  }
+};
+
 export default function AgentDashboard() {
   const [active, setActive] = useState<AgentId>('master');
   const [chats, setChats] = useState<Record<AgentId, Msg[]>>(initChats);
@@ -215,6 +244,7 @@ export default function AgentDashboard() {
   const [copied, setCopied] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [dark, setDark] = useState(false);
   
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -225,24 +255,30 @@ export default function AgentDashboard() {
   const visiblePrompts = currentPrompts.slice(currentIndex, currentIndex + 4);
   const hasMorePrompts = currentPrompts.length > 4;
 
-  const BORDER_COLOR = '#EAE1D9';
-  const PRIMARY_COLOR = '#556A3E';
-  const MASTER_COLOR = '#B8860B';
-  const activeColor = active === 'master' ? MASTER_COLOR : PRIMARY_COLOR;
+  const t = dark ? themes.dark : themes.light;
+  const activeColor = active === 'master' ? t.master : t.primary;
 
-  // Hydrate chats from localStorage
+  // Hydrate chats + theme from localStorage
   useEffect(() => {
     const saved = loadChats();
     if (saved) {
-      // Merge saved chats with init to ensure all keys exist
       const merged = initChats();
       for (const key of allAgentIds) {
         if (saved[key]) merged[key] = saved[key];
       }
       setChats(merged);
     }
+    try { const th = localStorage.getItem('tnc-theme'); if (th === 'dark') setDark(true); } catch {}
     setHydrated(true);
   }, []);
+
+  const toggleTheme = () => {
+    setDark(prev => {
+      const next = !prev;
+      try { localStorage.setItem('tnc-theme', next ? 'dark' : 'light'); } catch {}
+      return next;
+    });
+  };
 
   // Save chats to localStorage whenever they change
   useEffect(() => {
@@ -317,9 +353,9 @@ export default function AgentDashboard() {
         .prompt-btn {
           padding: 8px 12px;
           border-radius: 6px;
-          border: 1px solid #e8e8e3;
-          background: #FFFFFF;
-          color: #2D2D2D;
+          border: 1px solid ${t.promptBorder};
+          background: ${t.promptBg};
+          color: ${t.text};
           font-size: 12px;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -328,41 +364,43 @@ export default function AgentDashboard() {
           min-width: 220px;
           line-height: 1.4;
         }
-        .prompt-btn:hover { background: #efefea; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .prompt-btn:hover { background: ${t.promptHover}; transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,${dark ? '0.2' : '0.04'}); }
         .prompt-btn:active { transform: scale(0.98); }
         .refresh-btn {
           padding: 6px 14px;
           border-radius: 20px;
-          background: #F6F8F3;
-          border: 1px solid #556A3E30;
-          color: #556A3E;
+          background: ${t.refreshBg};
+          border: 1px solid ${t.primary}30;
+          color: ${t.primary};
           font-size: 11px;
           cursor: pointer;
           font-weight: 500;
           transition: all 0.2s ease;
         }
-        .refresh-btn:hover { background: #556A3E10; border-color: #556A3E; }
+        .refresh-btn:hover { background: ${t.primary}10; border-color: ${t.primary}; }
         * { box-sizing: border-box; }
         .sidebar-scroll::-webkit-scrollbar { width: 4px; }
         .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
-        .sidebar-scroll::-webkit-scrollbar-thumb { background: #EAE1D9; border-radius: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: ${t.scrollThumb}; border-radius: 4px; }
         .agent-btn { transition: all 0.15s ease; }
-        .agent-btn:hover { background: #F9F7F5 !important; }
-        .slash-cmd { color: #B8860B; font-weight: 600; }
+        .agent-btn:hover { background: ${dark ? '#2A2A30' : '#F9F7F5'} !important; }
+        .slash-cmd { color: ${t.master}; font-weight: 600; }
+        .theme-toggle { padding: 4px 10px; border-radius: 20px; border: 1px solid ${t.border}; background: ${t.bgInput}; color: ${t.textSoft}; font-size: 14px; cursor: pointer; transition: all 0.2s ease; line-height: 1; }
+        .theme-toggle:hover { background: ${t.promptHover}; }
         @media (max-width: 768px) {
           .desktop-sidebar { display: none !important; }
           .mobile-full { width: 100% !important; }
           .prompt-btn { min-width: 100% !important; flex: 1 1 100% !important; }
         }
       `}} />
-      <div style={{ display: 'flex', height: '100vh', background: '#FCFAF8', color: '#2D2D2D', fontFamily: 'var(--font-montserrat), sans-serif' }}>
+      <div style={{ display: 'flex', height: '100vh', background: t.bg, color: t.text, fontFamily: 'var(--font-montserrat), sans-serif', transition: 'background 0.3s ease, color 0.3s ease' }}>
         
         {/* LEFT SIDEBAR */}
         {sidebarOpen && (
-          <div className="desktop-sidebar" style={{ width: 280, borderRight: `1px solid ${BORDER_COLOR}`, display: 'flex', flexDirection: 'column', background: '#FFFFFF', flexShrink: 0 }}>
-            <div style={{ padding: '24px 20px', borderBottom: `1px solid ${BORDER_COLOR}` }}>
-              <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: PRIMARY_COLOR, lineHeight: 1 }}>TNC</div>
-              <div style={{ fontSize: 9, color: '#888', marginTop: 5, letterSpacing: 1.5, textTransform: 'uppercase' }}>Executive Team · {totalMessages} messages</div>
+          <div className="desktop-sidebar" style={{ width: 280, borderRight: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', background: t.bgSidebar, flexShrink: 0, transition: 'background 0.3s ease' }}>
+            <div style={{ padding: '24px 20px', borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: t.primary, lineHeight: 1 }}>TNC</div>
+              <div style={{ fontSize: 9, color: t.textMuted, marginTop: 5, letterSpacing: 1.5, textTransform: 'uppercase' }}>Executive Team · {totalMessages} messages</div>
             </div>
             <div className="sidebar-scroll" style={{ padding: '6px 10px', flex: 1, overflowY: 'auto' }}>
               {allAgentIds.map((id, idx) => {
@@ -370,33 +408,33 @@ export default function AgentDashboard() {
                 const isActive = active === id;
                 const isMaster = id === 'master';
                 const msgCount = chats[id].length;
-                const accentColor = isMaster ? MASTER_COLOR : PRIMARY_COLOR;
+                const accentColor = isMaster ? t.master : t.primary;
                 return (
                   <div key={id}>
-                    {isMaster && <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#888', letterSpacing: 2, padding: '8px 8px 4px', fontWeight: 500 }}>Command</div>}
-                    {idx === 1 && <div style={{ fontSize: 9, textTransform: 'uppercase', color: '#888', letterSpacing: 2, padding: '12px 8px 4px', fontWeight: 500, borderTop: `1px solid ${BORDER_COLOR}`, marginTop: 4 }}>The Team</div>}
+                    {isMaster && <div style={{ fontSize: 9, textTransform: 'uppercase', color: t.textMuted, letterSpacing: 2, padding: '8px 8px 4px', fontWeight: 500 }}>Command</div>}
+                    {idx === 1 && <div style={{ fontSize: 9, textTransform: 'uppercase', color: t.textMuted, letterSpacing: 2, padding: '12px 8px 4px', fontWeight: 500, borderTop: `1px solid ${t.border}`, marginTop: 4 }}>The Team</div>}
                     <button 
                       className="agent-btn"
                       onClick={() => setActive(id)} 
                       style={{ 
                         width: '100%', padding: '9px 10px', margin: '1px 0', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, 
-                        background: isActive ? (isMaster ? '#FFF8E7' : '#F6F8F3') : 'transparent', 
+                        background: isActive ? (isMaster ? t.masterBg : t.agentActiveBg) : 'transparent', 
                         borderLeft: `3px solid ${isActive ? accentColor : 'transparent'}`,
                       }}>
-                      <span style={{ fontSize: 15, color: isActive ? accentColor : '#AAA', flexShrink: 0 }}>{ag.icon}</span>
+                      <span style={{ fontSize: 15, color: isActive ? accentColor : t.textFaint, flexShrink: 0 }}>{ag.icon}</span>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: isActive ? '#2D2D2D' : '#666', fontStyle: isActive ? 'italic' : 'normal' }}>{ag.name}</div>
-                        <div style={{ fontSize: 9, color: '#999', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ag.title}</div>
+                        <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: isActive ? t.text : t.textSoft, fontStyle: isActive ? 'italic' : 'normal' }}>{ag.name}</div>
+                        <div style={{ fontSize: 9, color: t.textFaint, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ag.title}</div>
                       </div>
-                      {msgCount > 0 && <span style={{ fontSize: 9, background: isMaster ? '#FFF3D0' : '#F0F4ED', color: isMaster ? MASTER_COLOR : PRIMARY_COLOR, padding: '2px 6px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>{msgCount}</span>}
+                      {msgCount > 0 && <span style={{ fontSize: 9, background: isMaster ? t.masterBadge : t.agentBadgeBg, color: isMaster ? t.master : t.primary, padding: '2px 6px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>{msgCount}</span>}
                     </button>
                   </div>
                 );
               })}
             </div>
-            <div style={{ padding: '8px 10px', borderTop: `1px solid ${BORDER_COLOR}`, fontSize: 9, color: '#999', textAlign: 'center' }}>
+            <div style={{ padding: '8px 10px', borderTop: `1px solid ${t.border}`, fontSize: 9, color: t.shortcutText, textAlign: 'center' }}>
               <div style={{ marginBottom: 6 }}>⌘1-8 switch agents · ⌘K clear</div>
-              <button onClick={() => { setShowCrm(!showCrm); if (!showCrm) fetchCrm(); }} style={{ width: '100%', padding: '8px', borderRadius: 6, border: `1px solid ${BORDER_COLOR}`, background: showCrm ? '#F6F8F3' : '#FFFFFF', color: '#444', cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
+              <button onClick={() => { setShowCrm(!showCrm); if (!showCrm) fetchCrm(); }} style={{ width: '100%', padding: '8px', borderRadius: 6, border: `1px solid ${t.border}`, background: showCrm ? t.agentActiveBg : t.bgCard, color: t.textSoft, cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
                 {showCrm ? 'Close CRM' : `View CRM (${crm.length})`}
               </button>
             </div>
@@ -406,21 +444,22 @@ export default function AgentDashboard() {
         {/* MAIN CHAT AREA */}
         <div className="mobile-full" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#FCFAF8' }}>
           {/* HEADER */}
-          <div style={{ padding: '14px 24px', borderBottom: `1px solid ${BORDER_COLOR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: active === 'master' ? '#FFFCF5' : '#FFFFFF' }}>
+          <div style={{ padding: '14px 24px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: active === 'master' ? t.masterBg : t.bgCard, transition: 'background 0.3s ease' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 18, padding: 0 }}>☰</button>
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'none', border: 'none', color: t.textMuted, cursor: 'pointer', fontSize: 18, padding: 0 }}>☰</button>
               <span style={{ fontSize: 20, color: activeColor }}>{a.icon}</span>
               <div>
-                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 20, color: '#2D2D2D', fontStyle: 'italic' }}>{a.name}</div>
-                <div style={{ fontSize: 10, color: '#888' }}>{a.desc}</div>
+                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 20, color: t.text, fontStyle: 'italic' }}>{a.name}</div>
+                <div style={{ fontSize: 10, color: t.textMuted }}>{a.desc}</div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="theme-toggle" onClick={toggleTheme} title={dark ? 'Switch to light mode' : 'Switch to dark mode'}>{dark ? '☀️' : '🌙'}</button>
               {active === 'master' && activeAgentCount > 0 && (
-                <span style={{ fontSize: 10, background: '#FFF3D0', color: MASTER_COLOR, padding: '3px 10px', borderRadius: 12, fontWeight: 500 }}>{activeAgentCount}/7 agents active</span>
+                <span style={{ fontSize: 10, background: t.masterBadge, color: t.master, padding: '3px 10px', borderRadius: 12, fontWeight: 500 }}>{activeAgentCount}/7 agents active</span>
               )}
               {msgs.length > 0 && (
-                <button onClick={clearChat} style={{ padding: '5px 12px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FFFFFF', color: '#666', fontSize: 10, cursor: 'pointer', transition: 'all 0.2s ease' }}>Clear</button>
+                <button onClick={clearChat} style={{ padding: '5px 12px', borderRadius: 4, border: `1px solid ${t.border}`, background: t.bgCard, color: t.textSoft, fontSize: 10, cursor: 'pointer', transition: 'all 0.2s ease' }}>Clear</button>
               )}
             </div>
           </div>
@@ -431,10 +470,10 @@ export default function AgentDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20 }}>
                 <div style={{ fontSize: 56, color: activeColor, opacity: 0.15 }}>{a.icon}</div>
                 <div style={{ textAlign: 'center', maxWidth: 500 }}>
-                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: '#2D2D2D', marginBottom: 10 }}>
+                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: t.text, marginBottom: 10 }}>
                     {active === 'master' ? 'Master Command Center' : `Speak with ${a.name}`}
                   </div>
-                  <div style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 13, color: t.textSoft, lineHeight: 1.6 }}>
                     {active === 'master' 
                       ? 'Your executive dashboard with full cross-agent visibility. Use slash commands like /brief, /trending, or /connect to unlock intelligence.'
                       : `${a.desc}. Try a suggestion below to begin.`
@@ -443,7 +482,7 @@ export default function AgentDashboard() {
                   {active === 'master' && (
                     <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                       {['/brief', '/trending', '/gap', '/connect', '/expert', '/analyze'].map(cmd => (
-                        <span key={cmd} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 12, background: '#FFF3D0', color: MASTER_COLOR, fontWeight: 600, fontFamily: 'monospace' }}>{cmd}</span>
+                        <span key={cmd} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 12, background: t.masterBadge, color: t.master, fontWeight: 600, fontFamily: 'monospace' }}>{cmd}</span>
                       ))}
                     </div>
                   )}
@@ -453,19 +492,19 @@ export default function AgentDashboard() {
               <div style={{ maxWidth: 800, margin: '0 auto' }}>
                 {msgs.map(m => (
                   <div key={m.id} className="msg-anim" style={{ marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                    <div style={{ fontSize: 10, color: '#888', marginBottom: 5, margin: '0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>{m.role === 'user' ? 'Prasann' : a.name} <span style={{ opacity: 0.4, margin: '0 3px' }}>·</span> {m.time}</div>
+                    <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 5, margin: '0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>{m.role === 'user' ? 'Prasann' : a.name} <span style={{ opacity: 0.4, margin: '0 3px' }}>·</span> {m.time}</div>
                     <div style={{ 
                       position: 'relative', maxWidth: '85%', padding: '14px 18px', 
                       borderRadius: m.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px', 
-                      background: m.role === 'user' ? activeColor : '#FFFFFF', 
-                      border: m.role === 'user' ? 'none' : `1px solid ${BORDER_COLOR}`, 
-                      fontSize: 13, lineHeight: 1.7, color: m.role === 'user' ? '#FFFFFF' : '#333', 
+                      background: m.role === 'user' ? activeColor : t.msgBotBg, 
+                      border: m.role === 'user' ? 'none' : `1px solid ${t.msgBotBorder}`, 
+                      fontSize: 13, lineHeight: 1.7, color: m.role === 'user' ? '#FFFFFF' : t.text, 
                       whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      boxShadow: m.role === 'user' ? '0 2px 8px rgba(0,0,0,0.08)' : '0 1px 4px rgba(0,0,0,0.02)'
+                      boxShadow: m.role === 'user' ? '0 2px 8px rgba(0,0,0,0.08)' : `0 1px 4px rgba(0,0,0,${dark ? '0.15' : '0.02'})`
                     }}>
                       {m.text}
                       {m.role === 'assistant' && (
-                        <button onClick={() => copyText(m.text, m.id)} title="Copy response" style={{ position: 'absolute', top: 10, right: 10, padding: '3px 8px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: activeColor, fontSize: 10, cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                        <button onClick={() => copyText(m.text, m.id)} title="Copy response" style={{ position: 'absolute', top: 10, right: 10, padding: '3px 8px', borderRadius: 4, border: `1px solid ${t.copyBorder}`, background: t.copyBg, color: activeColor, fontSize: 10, cursor: 'pointer', transition: 'all 0.15s ease' }}>
                           {copied === m.id ? '✓' : 'Copy'}
                         </button>
                       )}
@@ -479,14 +518,14 @@ export default function AgentDashboard() {
           </div>
           
           {/* INPUT AREA */}
-          <div style={{ padding: '16px 24px', background: active === 'master' ? '#FFFCF5' : '#FFFFFF', borderTop: `1px solid ${BORDER_COLOR}` }}>
+          <div style={{ padding: '16px 24px', background: active === 'master' ? t.masterBg : t.bgCard, borderTop: `1px solid ${t.border}`, transition: 'background 0.3s ease' }}>
             <div style={{ maxWidth: 800, margin: '0 auto' }}>
               
               {/* SUGGESTION CARDS */}
               {msgs.length === 0 && (
                 <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#666', letterSpacing: 1, textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: t.textSoft, letterSpacing: 1, textTransform: 'uppercase' }}>
                       {active === 'master' ? '🎛️ Commands & Queries' : '💡 Quick Suggestions'}
                     </div>
                     {hasMorePrompts && (
@@ -497,7 +536,7 @@ export default function AgentDashboard() {
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
                     {visiblePrompts.map((p, i) => (
-                      <button key={i} className="prompt-btn" onClick={() => setInput(p)} style={active === 'master' ? { borderColor: '#E8D9A0', background: '#FFFCF5' } : {}}>
+                      <button key={i} className="prompt-btn" onClick={() => setInput(p)} style={active === 'master' ? { borderColor: t.masterInputBorder, background: t.masterBg } : {}}>
                         {p.length > 85 ? p.substring(0, 82) + '...' : p}
                       </button>
                     ))}
@@ -509,8 +548,8 @@ export default function AgentDashboard() {
                 <textarea 
                   ref={inputRef} value={input} onChange={e => setInput(e.target.value)} 
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }} 
-                  placeholder={active === 'master' ? 'Type a command (/brief, /trending...) or ask anything...' : `Message ${a.name}...`} rows={1} 
-                  style={{ flex: 1, padding: '12px 18px', borderRadius: 12, border: `1px solid ${active === 'master' ? '#E8D9A0' : BORDER_COLOR}`, background: active === 'master' ? '#FFFDF7' : '#FCFAF8', color: '#2D2D2D', fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 150, lineHeight: 1.5, transition: 'border-color 0.2s ease' }} 
+                  placeholder={active === 'master' ? 'Type a command (/brief, /trending...) or ask anything...' : `Message ${a.name}...`} rows={1}
+                  style={{ flex: 1, padding: '12px 18px', borderRadius: 12, border: `1px solid ${active === 'master' ? t.masterInputBorder : t.border}`, background: active === 'master' ? t.masterInput : t.bgInput, color: t.text, fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none', maxHeight: 150, lineHeight: 1.5, transition: 'border-color 0.2s ease' }} 
                 />
                 <button 
                   onClick={() => send(input)} disabled={loading || !input.trim()} 
@@ -518,34 +557,34 @@ export default function AgentDashboard() {
                   {loading ? '...' : 'Send'}
                 </button>
               </div>
-              <div style={{ fontSize: 9, color: '#999', textAlign: 'center', marginTop: 8, letterSpacing: 0.5 }}>⇧Enter new line · Enter send · ⌘1-8 agents · ⌘K clear</div>
+              <div style={{ fontSize: 9, color: t.shortcutText, textAlign: 'center', marginTop: 8, letterSpacing: 0.5 }}>⇧Enter new line · Enter send · ⌘1-8 agents · ⌘K clear</div>
             </div>
           </div>
         </div>
 
         {/* RIGHT CRM SIDEBAR */}
         {showCrm && (
-          <div className="desktop-sidebar" style={{ width: 300, borderLeft: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', overflowY: 'auto', flexShrink: 0 }}>
-            <div style={{ padding: '16px', borderBottom: `1px solid ${BORDER_COLOR}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 10 }}>
+          <div className="desktop-sidebar" style={{ width: 300, borderLeft: `1px solid ${t.border}`, background: t.bg, overflowY: 'auto', flexShrink: 0 }}>
+            <div style={{ padding: '16px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: t.bgCard, position: 'sticky', top: 0, zIndex: 10 }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 18, color: '#2D2D2D' }}>CRM</div>
-                <div style={{ fontSize: 9, color: '#888', marginTop: 2 }}>{crm.length} Prospects</div>
+                <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 18, color: t.text }}>CRM</div>
+                <div style={{ fontSize: 9, color: t.textMuted, marginTop: 2 }}>{crm.length} Prospects</div>
               </div>
-              <button onClick={fetchCrm} style={{ padding: '4px 8px', borderRadius: 4, border: `1px solid ${BORDER_COLOR}`, background: '#FCFAF8', color: PRIMARY_COLOR, fontSize: 10, cursor: 'pointer' }}>Sync</button>
+              <button onClick={fetchCrm} style={{ padding: '4px 8px', borderRadius: 4, border: `1px solid ${t.border}`, background: t.bgInput, color: t.primary, fontSize: 10, cursor: 'pointer' }}>Sync</button>
             </div>
             <div style={{ padding: '10px' }}>
               {crm.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '48px 16px', color: '#888', fontSize: 12, lineHeight: 1.6 }}>
-                  <div style={{ fontSize: 36, marginBottom: 12, color: BORDER_COLOR }}>📭</div>
+                <div style={{ textAlign: 'center', padding: '48px 16px', color: t.textMuted, fontSize: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 36, marginBottom: 12, color: t.border }}>📭</div>
                   No prospects connected yet.
                 </div>
               ) : crm.map((p, i) => (
-                <div key={i} style={{ padding: '12px', borderRadius: 6, border: `1px solid ${BORDER_COLOR}`, marginBottom: 8, background: '#FFFFFF', boxShadow: '0 1px 3px rgba(0,0,0,0.01)' }}>
-                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: '#2D2D2D', marginBottom: 2 }}>{p.Name || 'Unknown'}</div>
-                  {p.Company && <div style={{ fontSize: 10, color: '#666', marginBottom: 8 }}>{p.Company}</div>}
+                <div key={i} style={{ padding: '12px', borderRadius: 6, border: `1px solid ${t.border}`, marginBottom: 8, background: t.bgCard, boxShadow: `0 1px 3px rgba(0,0,0,${dark ? '0.1' : '0.01'})` }}>
+                  <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 15, color: t.text, marginBottom: 2 }}>{p.Name || 'Unknown'}</div>
+                  {p.Company && <div style={{ fontSize: 10, color: t.textSoft, marginBottom: 8 }}>{p.Company}</div>}
                   <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                    {p.Status && <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 6px', borderRadius: 12, background: '#F6F8F3', color: PRIMARY_COLOR, border: `1px solid ${PRIMARY_COLOR}30` }}>{p.Status}</span>}
-                    {p.Priority && <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 6px', borderRadius: 12, background: p.Priority === 'HIGH' ? PRIMARY_COLOR : '#F5F5F5', color: p.Priority === 'HIGH' ? '#FFF' : '#666' }}>{p.Priority}</span>}
+                    {p.Status && <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 6px', borderRadius: 12, background: t.agentActiveBg, color: t.primary, border: `1px solid ${t.primary}30` }}>{p.Status}</span>}
+                    {p.Priority && <span style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: 0.5, padding: '2px 6px', borderRadius: 12, background: p.Priority === 'HIGH' ? t.primary : t.promptBg, color: p.Priority === 'HIGH' ? '#FFF' : t.textSoft }}>{p.Priority}</span>}
                   </div>
                 </div>
               ))}
