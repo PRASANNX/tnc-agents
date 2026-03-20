@@ -7,14 +7,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: Request) {
   try {
-    const { message, agent, history, crossAgentContext } = await req.json();
+    const { message, agent, history, crossAgentContext, timeContext } = await req.json();
     
     let crmData: any[] = [];
     try {
       crmData = await getSheetData();
     } catch {}
     
-    const systemPrompt = getSystemPrompt(agent, crmData, crossAgentContext || undefined);
+    const systemPrompt = getSystemPrompt(agent, crmData, crossAgentContext || undefined, timeContext);
     
     let fullPrompt = systemPrompt + "\n\n=== CONVERSATION ===\n";
     

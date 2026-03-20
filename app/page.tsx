@@ -245,6 +245,12 @@ export default function AgentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [dark, setDark] = useState(false);
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
   
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -257,6 +263,18 @@ export default function AgentDashboard() {
 
   const t = dark ? themes.dark : themes.light;
   const activeColor = active === 'master' ? t.master : t.primary;
+
+  const launchDate = new Date('2024-01-08');
+  const daysSinceLaunch = Math.floor((now.getTime() - launchDate.getTime()) / (1000 * 60 * 60 * 24));
+  const weeksSinceLaunch = Math.floor(daysSinceLaunch / 7);
+  const monthsSinceLaunch = Math.floor(daysSinceLaunch / 30);
+  
+  // Calculate Phase (Months 1-3 = Phase 1, Months 4-6 = Phase 2, Months 7-12 = Phase 3)
+  const currentPhase = monthsSinceLaunch < 3 ? 1 : monthsSinceLaunch < 6 ? 2 : 3;
+  const progressToGoal = Math.min(100, Math.floor((daysSinceLaunch / 90) * 100));
+
+  const formattedDate = now.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+  const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   // Hydrate chats + theme from localStorage
   useEffect(() => {
@@ -321,7 +339,16 @@ export default function AgentDashboard() {
     setInput('');
     setLoading(true);
     try {
-      const body: any = { message: text, agent: active, history: ((chats[active as AgentId] || []) as Msg[]).map((m: Msg) => ({ role: m.role, content: m.text })) };
+      const timeContext = {
+        date: formattedDate,
+        time: formattedTime,
+        days: daysSinceLaunch,
+        weeks: weeksSinceLaunch,
+        months: monthsSinceLaunch,
+        phase: currentPhase,
+        progress: progressToGoal
+      };
+      const body: any = { message: text, agent: active, timeContext, history: ((chats[active as AgentId] || []) as Msg[]).map((m: Msg) => ({ role: m.role, content: m.text })) };
       // For master agent, include cross-agent context
       if (active === 'master') {
         body.crossAgentContext = buildCrossAgentContext(chats);
@@ -475,7 +502,17 @@ export default function AgentDashboard() {
                 <div style={{ fontSize: 56, color: activeColor, opacity: 0.15 }}>{a.icon}</div>
                 <div style={{ textAlign: 'center', maxWidth: 500 }}>
                   <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 28, color: t.text, marginBottom: 10 }}>
-                    {active === 'master' ? 'Master Command Center' : `Speak with ${a.name}`}
+                    {active === 'master' ? (
+                      <div>
+                        <div>🎛️ MASTER COMMAND CENTER</div>
+                        <div style={{ fontSize: 13, color: t.textSoft, lineHeight: 1.6, marginTop: 12, fontFamily: 'var(--font-montserrat), sans-serif', fontWeight: 'normal', textAlign: 'left', background: t.masterBadge, padding: '16px', borderRadius: '12px', border: `1px solid ${t.masterInputBorder}` }}>
+                          <div><span style={{color: t.master, fontWeight: 'bold'}}>📅 Today:</span> {formattedDate}</div>
+                          <div style={{marginTop: 4}}><span style={{color: t.master, fontWeight: 'bold'}}>🕐 Time:</span> {formattedTime}</div>
+                          <div style={{marginTop: 4}}><span style={{color: t.master, fontWeight: 'bold'}}>⏱️ Days Since Launch:</span> {daysSinceLaunch} days ({weeksSinceLaunch} weeks)</div>
+                          <div style={{marginTop: 4}}><span style={{color: t.master, fontWeight: 'bold'}}>📊 Phase:</span> {currentPhase} of 3 | Progress: {progressToGoal}% to Phase Goal</div>
+                        </div>
+                      </div>
+                    ) : `Speak with ${a.name}`}
                   </div>
                   <div style={{ fontSize: 13, color: t.textSoft, lineHeight: 1.6 }}>
                     {active === 'master' 
