@@ -260,6 +260,7 @@ export default function AgentDashboard() {
   const [loading, setLoading] = useState(false);
   const [crm, setCrm] = useState<Prospect[]>([]);
   const [showCrm, setShowCrm] = useState(false);
+  const [showTaskWidget, setShowTaskWidget] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hydrated, setHydrated] = useState(false);
@@ -574,9 +575,14 @@ export default function AgentDashboard() {
             </div>
             <div style={{ padding: '8px 10px', borderTop: `1px solid ${t.border}`, fontSize: 9, color: t.shortcutText, textAlign: 'center' }}>
               <div style={{ marginBottom: 6 }}>⌘1-8 switch agents · ⌘K clear</div>
-              <button onClick={() => { setShowCrm(!showCrm); if (!showCrm) fetchCrm(); }} style={{ width: '100%', padding: '8px', borderRadius: 6, border: `1px solid ${t.border}`, background: showCrm ? t.agentActiveBg : t.bgCard, color: t.textSoft, cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
-                {showCrm ? 'Close CRM' : `View CRM (${crm.length})`}
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => { setShowCrm(!showCrm); setShowTaskWidget(false); if (!showCrm) fetchCrm(); }} style={{ flex: 1, padding: '8px', borderRadius: 6, border: `1px solid ${t.border}`, background: showCrm ? t.agentActiveBg : t.bgCard, color: t.textSoft, cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
+                  {showCrm ? 'Close CRM' : 'CRM'}
+                </button>
+                <button onClick={() => { setShowTaskWidget(!showTaskWidget); setShowCrm(false); }} style={{ flex: 1, padding: '8px', borderRadius: 6, border: `1px solid ${t.border}`, background: showTaskWidget ? t.agentActiveBg : t.bgCard, color: t.textSoft, cursor: 'pointer', fontSize: 11, fontWeight: 500, transition: 'all 0.2s ease' }}>
+                   {showTaskWidget ? 'Close Team' : 'Live Team'}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -744,8 +750,9 @@ export default function AgentDashboard() {
       </div>
 
       {/* RIGHT CRM SIDEBAR */}
+        {/* RIGHT SIDEBAR (CRM or Task Widget) */}
         {showCrm && (
-          <div className="desktop-sidebar" style={{ width: 300, borderLeft: `1px solid ${t.border}`, background: t.bg, overflowY: 'auto', flexShrink: 0 }}>
+          <div className="desktop-sidebar" style={{ width: 320, borderLeft: `1px solid ${t.border}`, background: t.bg, overflowY: 'auto', flexShrink: 0 }}>
             <div style={{ padding: '16px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: t.bgCard, position: 'sticky', top: 0, zIndex: 10 }}>
               <div>
                 <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 18, color: t.text }}>CRM</div>
@@ -769,6 +776,49 @@ export default function AgentDashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {showTaskWidget && (
+          <div className="desktop-sidebar" style={{ width: 340, borderLeft: `1px solid ${t.border}`, background: t.bg, overflowY: 'auto', flexShrink: 0 }}>
+            <div style={{ padding: '16px', borderBottom: `1px solid ${t.border}`, background: t.bgCard, position: 'sticky', top: 0, zIndex: 10 }}>
+              <div style={{ fontFamily: 'var(--font-instrument)', fontSize: 18, color: t.text }}>Live Team Tracking</div>
+              <div style={{ fontSize: 9, color: t.textMuted, marginTop: 2 }}>Real-time cross-agent status</div>
+            </div>
+            <div style={{ padding: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {chatAgentIds.map(id => {
+                   const ag = agents[id];
+                   const agentMsgs = chats[id] || [];
+                   const lastMsg = agentMsgs.length > 0 ? agentMsgs[agentMsgs.length - 1].text : 'Awaiting task...';
+                   const taskCount = activeTasks.filter(tk => tk.assignedAgent === id).length;
+                   return (
+                     <div key={id} style={{ padding: '12px', borderRadius: 10, background: t.bgCard, border: `1px solid ${t.border}`, boxShadow: `0 2px 4px rgba(0,0,0,${dark ? '0.2' : '0.03'})` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 14 }}>{ag.icon}</span>
+                              <span style={{ fontSize: 13, fontWeight: 600 }}>{ag.name}</span>
+                           </div>
+                           <span style={{ fontSize: 9, background: t.agentBadgeBg, color: t.primary, padding: '2px 6px', borderRadius: 8 }}>{taskCount} tasks</span>
+                        </div>
+                        <div style={{ fontSize: 11, color: t.textSoft, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
+                           "{lastMsg}"
+                        </div>
+                     </div>
+                   );
+                })}
+              </div>
+              
+              <div style={{ marginTop: 24, borderTop: `1px solid ${t.border}`, paddingTop: 16 }}>
+                 <div style={{ fontSize: 11, fontWeight: 600, color: t.textMuted, marginBottom: 12, letterSpacing: 1 }}>RECENT COLLABORATION</div>
+                 {collabMessages.slice(-5).reverse().map((m, i) => (
+                    <div key={i} style={{ marginBottom: 10, fontSize: 10 }}>
+                       <div style={{ color: t.primary, fontWeight: 700 }}>{m.from.toUpperCase()} → {m.to.toUpperCase()}</div>
+                       <div style={{ color: t.textSoft, marginTop: 2 }}>{m.message.substring(0, 80)}...</div>
+                    </div>
+                 ))}
+              </div>
             </div>
           </div>
         )}
