@@ -5,6 +5,25 @@ type AgentId = 'master' | 'leadgen' | 'sales' | 'insights' | 'marketing' | 'oper
 interface Msg { id: string; role: 'user' | 'assistant'; text: string; time: string; }
 interface Prospect { Name?: string; Company?: string; Status?: string; Priority?: string; [key: string]: any; }
 
+export interface AgentTask {
+  id: string;
+  title: string;
+  assignedAgent: AgentId;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+  createdAt: string;
+  timeline: string;
+  dependencies: AgentId[];
+  progress: string[];
+}
+
+export interface AgentMessage {
+  id: string;
+  from: AgentId | 'master';
+  to: AgentId | 'master' | 'all';
+  timestamp: string;
+  message: string;
+}
+
 const allAgentIds: AgentId[] = ['master', 'leadgen', 'sales', 'insights', 'marketing', 'operations', 'finance', 'product'];
 const chatAgentIds: AgentId[] = ['leadgen', 'sales', 'insights', 'marketing', 'operations', 'finance', 'product'];
 
@@ -246,6 +265,11 @@ export default function AgentDashboard() {
   const [hydrated, setHydrated] = useState(false);
   const [dark, setDark] = useState(false);
   const [now, setNow] = useState(new Date());
+  
+  // Auto-Execution System State
+  const [activeTasks, setActiveTasks] = useState<AgentTask[]>([]);
+  const [collabMessages, setCollabMessages] = useState<AgentMessage[]>([]);
+  const [masterView, setMasterView] = useState<'chat' | 'tasks' | 'collab'>('chat');
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
@@ -286,7 +310,16 @@ export default function AgentDashboard() {
       }
       setChats(merged);
     }
-    try { const th = localStorage.getItem('tnc-theme'); if (th === 'dark') setDark(true); } catch {}
+    try { 
+      const th = localStorage.getItem('tnc-theme'); 
+      if (th === 'dark') setDark(true); 
+      
+      const st = localStorage.getItem('tnc-tasks');
+      if (st) setActiveTasks(JSON.parse(st));
+      
+      const sc = localStorage.getItem('tnc-collab');
+      if (sc) setCollabMessages(JSON.parse(sc));
+    } catch {}
     setHydrated(true);
   }, []);
 
@@ -298,10 +331,16 @@ export default function AgentDashboard() {
     });
   };
 
-  // Save chats to localStorage whenever they change
+  // Save chats and system state to localStorage whenever they change
   useEffect(() => {
-    if (hydrated) saveChats(chats);
-  }, [chats, hydrated]);
+    if (hydrated) {
+      saveChats(chats);
+      try {
+        localStorage.setItem('tnc-tasks', JSON.stringify(activeTasks));
+        localStorage.setItem('tnc-collab', JSON.stringify(collabMessages));
+      } catch (e) {}
+    }
+  }, [chats, activeTasks, collabMessages, hydrated]);
 
   useEffect(() => {
     if (hydrated && msgs.length >= 0) {
@@ -332,6 +371,30 @@ export default function AgentDashboard() {
     return () => window.removeEventListener('keydown', handler);
   }, [active]);
   
+  const triggerAgent = useCallback(async (agentId: AgentId, text: string) => {
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg: Msg = { id: 'u-' + Date.now() + Math.random(), role: 'user', text, time: timeStr };
+    setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [agentId]: [...(p[agentId] || []), userMsg] }));
+    
+    try {
+      const timeContext = { date: formattedDate, time: formattedTime, days: daysSinceLaunch, weeks: weeksSinceLaunch, months: monthsSinceLaunch, phase: currentPhase, progress: progressToGoal };
+      const body: any = { message: text, agent: agentId, timeContext, history: [] }; 
+      const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json();
+      const botText = d.response || 'Acknowledged.';
+      const botMsg: Msg = { id: 'a-' + Date.now() + Math.random(), role: 'assistant', text: botText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+      setChats(p => ({ ...p, [agentId]: [...p[agentId], botMsg] }));
+      
+      setCollabMessages(prev => [...prev, {
+         id: 'c-' + Date.now() + Math.random(),
+         from: agentId,
+         to: 'master',
+         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+         message: `Status Update: ${botText.substring(0, 150)}...`
+      }]);
+    } catch (e) { console.error("Failed to trigger agent", agentId, e); }
+  }, [formattedDate, formattedTime, daysSinceLaunch, weeksSinceLaunch, monthsSinceLaunch, currentPhase, progressToGoal]);
+  
   const send = useCallback(async (text: string) => {
     if (!text.trim() || loading) return;
     const userMsg: Msg = { id: 'u-' + Date.now(), role: 'user', text: text.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
@@ -355,14 +418,60 @@ export default function AgentDashboard() {
       }
       const r = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
-      const botMsg: Msg = { id: 'a-' + Date.now(), role: 'assistant', text: d.response || d.error || 'No response received.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+      const botText = d.response || d.error || 'No response received.';
+      const botMsg: Msg = { id: 'a-' + Date.now(), role: 'assistant', text: botText, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
       setChats(p => ({ ...p, [active]: [...p[active], botMsg] }));
+      
+      // AUTO-EXECUTION DELEGATION PARSER
+      if (active === 'master') {
+        const jsonMatch = botText.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[1]);
+            if (parsed.delegations && Array.isArray(parsed.delegations)) {
+              const newTasks: AgentTask[] = [];
+              parsed.delegations.forEach((del: any) => {
+                const taskId = 'TASK-' + Math.floor(Math.random() * 10000);
+                newTasks.push({
+                   id: taskId,
+                   title: del.title || 'Untitled Task',
+                   assignedAgent: del.agent as AgentId,
+                   status: 'IN_PROGRESS',
+                   createdAt: new Date().toLocaleString(),
+                   timeline: del.timeline || 'ASAP',
+                   dependencies: del.dependencies || [],
+                   progress: []
+                });
+                
+                const prompt = `🎯 NEW TASK ASSIGNED: ${del.title}\nTimeline: ${del.timeline}\nWHAT TO DO:\n${del.description}\n\nSTART EXECUTING IMMEDIATELY. Log progress to Master.`;
+                setTimeout(() => triggerAgent(del.agent as AgentId, prompt), 1000);
+              });
+              setActiveTasks(prev => [...prev, ...newTasks]);
+              setMasterView('tasks');
+            }
+          } catch(e) { console.error("Error parsing delegations JSON", e); }
+        }
+      }
+      
+      // AGENT MESSAGE PARSER (Sales -> Analytics)
+      if (active !== 'master') {
+        const collabMatch = botText.match(/<message to="([^"]+)">([\s\S]*?)<\/message>/);
+        if (collabMatch) {
+          const targetAgent = collabMatch[1] as AgentId;
+          const msgData = collabMatch[2];
+          setCollabMessages(prev => [...prev, {
+             id: 'c-' + Date.now(), from: active, to: targetAgent, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), message: msgData
+          }]);
+          setTimeout(() => triggerAgent(targetAgent, `${active.toUpperCase()} SHARED DATA:\n${msgData}\n\nPlease analyze and respond.`), 1000);
+        }
+      }
+      
       fetchCrm();
     } catch (e) { 
       const errMsg: Msg = { id: 'e-' + Date.now(), role: 'assistant', text: 'Connection failed. Make sure the server is running.', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }; 
       setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [active]: [...p[active], errMsg] })); 
     } finally { setLoading(false); }
-  }, [active, chats, loading]);
+  }, [active, chats, loading, triggerAgent]);
   
   const copyText = (text: string, id: string) => { navigator.clipboard.writeText(text); setCopied(id); setTimeout(() => setCopied(null), 2000); };
   const clearChat = () => { setChats((p: Record<AgentId, Msg[]>) => ({ ...p, [active as AgentId]: [] })); };
@@ -495,9 +604,38 @@ export default function AgentDashboard() {
             </div>
           </div>
           
-          {/* MESSAGES */}
+          {/* MAIN CONTENT AREA */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px', background: t.bg, transition: 'background 0.3s ease' }}>
-            {(chats[active as AgentId] || []).length === 0 ? (
+            {active === 'master' && masterView === 'tasks' ? (
+              <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                <h2 style={{ fontFamily: 'var(--font-instrument)', fontSize: 24, marginBottom: 20 }}>Current Tasks</h2>
+                {activeTasks.length === 0 ? <p style={{ color: t.textSoft }}>No active tasks. Ask Master to delegate.</p> : activeTasks.map(t => (
+                  <div key={t.id} style={{ border: `1px solid ${dark?'#333':'#EAE4DB'}`, borderRadius: 8, padding: 16, marginBottom: 16, background: dark?'#1A1A1A':'#FFF' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <strong style={{ fontSize: 15 }}>{t.title}</strong>
+                      <span style={{ fontSize: 10, background: t.status === 'COMPLETED' ? '#4CAF50' : t.status === 'IN_PROGRESS' ? '#2196F3' : '#FF9800', color: '#FFF', padding: '3px 8px', borderRadius: 10 }}>{t.status}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: dark ? '#AAA' : '#666', marginBottom: 4 }}><strong>Assigned to:</strong> {t.assignedAgent}</div>
+                    <div style={{ fontSize: 12, color: dark ? '#AAA' : '#666', marginBottom: 4 }}><strong>Dependencies:</strong> {t.dependencies.length ? t.dependencies.join(', ') : 'None'}</div>
+                    <div style={{ fontSize: 12, color: dark ? '#AAA' : '#666', marginBottom: 12 }}><strong>Timeline:</strong> {t.timeline}</div>
+                    <div style={{ borderTop: `1px solid ${dark?'#333':'#EAE4DB'}`, paddingTop: 8, fontSize: 13 }}>
+                      <strong>Progress:</strong>
+                      {t.progress.length === 0 ? <div style={{ color: dark?'#888':'#999' }}>Task not started yet.</div> : t.progress.map((p, i) => <div key={i} style={{ marginTop: 4 }}>├─ {p}</div>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : active === 'master' && masterView === 'collab' ? (
+              <div style={{ maxWidth: 800, margin: '0 auto' }}>
+                 <h2 style={{ fontFamily: 'var(--font-instrument)', fontSize: 24, marginBottom: 20 }}>Collaboration Channel</h2>
+                 {collabMessages.length === 0 ? <p style={{ color: t.textSoft }}>No messages yet.</p> : collabMessages.map((m,i) => (
+                    <div key={i} style={{ borderLeft: `3px solid #EAA144`, paddingLeft: 12, marginBottom: 16 }}>
+                      <div style={{ fontSize: 10, color: t.textSoft, marginBottom: 4 }}>{m.timestamp} — <strong>{m.from.toUpperCase()}</strong> → <strong>{m.to.toUpperCase()}</strong></div>
+                      <div style={{ fontSize: 13, background: dark?'#1A1A1A':'#FFF', padding: '12px', borderRadius: 8, border: `1px solid ${dark?'#333':'#EAE4DB'}` }}>{m.message}</div>
+                    </div>
+                 ))}
+              </div>
+            ) : (chats[active as AgentId] || []).length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', gap: 20 }}>
                 <div style={{ fontSize: 56, color: activeColor, opacity: 0.15 }}>{a.icon}</div>
                 <div style={{ textAlign: 'center', maxWidth: 500 }}>
@@ -558,7 +696,8 @@ export default function AgentDashboard() {
             )}
           </div>
           
-          {/* INPUT AREA */}
+        {/* INPUT AREA (Only show if in Chat mode) */}
+        {(masterView === 'chat' || active !== 'master') && (
           <div style={{ padding: '16px 24px', background: active === 'master' ? t.masterBg : t.bgCard, borderTop: `1px solid ${t.border}`, transition: 'background 0.3s ease' }}>
             <div style={{ maxWidth: 800, margin: '0 auto' }}>
               
@@ -601,9 +740,10 @@ export default function AgentDashboard() {
               <div style={{ fontSize: 9, color: t.shortcutText, textAlign: 'center', marginTop: 8, letterSpacing: 0.5 }}>⇧Enter new line · Enter send · ⌘1-8 agents · ⌘K clear</div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* RIGHT CRM SIDEBAR */}
+      {/* RIGHT CRM SIDEBAR */}
         {showCrm && (
           <div className="desktop-sidebar" style={{ width: 300, borderLeft: `1px solid ${t.border}`, background: t.bg, overflowY: 'auto', flexShrink: 0 }}>
             <div style={{ padding: '16px', borderBottom: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: t.bgCard, position: 'sticky', top: 0, zIndex: 10 }}>

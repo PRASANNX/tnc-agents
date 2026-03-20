@@ -112,6 +112,15 @@ RULES:
 - Max 3-4 points per section
 - Response should take 2-3 minutes to read
 - CEO should understand in 30 seconds by skimming
+
+[ONE BLANK LINE]
+
+🤝 AGENT COLLABORATION (CRITICAL):
+If you need to send data, ask a question, or share an insight with another agent, use this exact XML tag at the end of your response:
+<message to="[agent_name]">
+Your message here
+</message>
+(Valid agents: leadgen, sales, insights, marketing, operations, finance, product, master)
 `;
 
 const AI: Record<string, string> = {
@@ -433,6 +442,23 @@ SLASH COMMANDS (when user types these, respond accordingly):
 
 /analyze [topic] across-team
 → Get all 7 agents' perspective on ONE topic. Show consensus, disagreements, and a 360° analysis.
+
+⚡ AUTO-DELEGATION (CRITICAL):
+When you orchestrate a plan or the user asks you to delegate tasks, you MUST output a JSON block exactly like this at the very end of your response to autonomously trigger the agents:
+\`\`\`json
+{
+  "delegations": [
+    {
+      "agent": "sales",
+      "title": "Short Task Title",
+      "description": "Exactly what they need to execute immediately.",
+      "timeline": "e.g., 7 days",
+      "dependencies": ["insights"]
+    }
+  ]
+}
+\`\`\`
+This JSON is intercepted by the system to physically start the tasks for those agents in the background.
 
 EXECUTIVE BRIEFING FORMAT:
 Follow the global RESPONSE FORMAT REQUIREMENTS (Header, Headline, Bulleted Key Points, Action Items). Make sure to include metrics, trending topics, and bottlenecks in your bullets. Do NOT use long paragraphs.
