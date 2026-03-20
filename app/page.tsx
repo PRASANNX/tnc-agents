@@ -264,7 +264,7 @@ export default function AgentDashboard() {
   const t = dark ? themes.dark : themes.light;
   const activeColor = active === 'master' ? t.master : t.primary;
 
-  const launchDate = new Date('2024-01-08');
+  const launchDate = new Date('2026-03-05');
   const daysSinceLaunch = Math.floor((now.getTime() - launchDate.getTime()) / (1000 * 60 * 60 * 24));
   const weeksSinceLaunch = Math.floor(daysSinceLaunch / 7);
   const monthsSinceLaunch = Math.floor(daysSinceLaunch / 30);
