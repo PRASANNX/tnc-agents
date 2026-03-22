@@ -285,103 +285,106 @@ export default function TNCCommandCenter() {
       .replace(/\n/g, "<br/>");
   };
 
-  if (!hydrated) return <div style={{ background: "#090908", height: "100vh" }} />;
-
   const working = tasks.filter(t => t.status === "working").length;
   const done = tasks.filter(t => t.status === "done").length;
 
+  if (!hydrated) return <div style={{ background: "#0b0b09", height: "100vh" }} />;
+
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#090908", color: "#dedad2", overflow: "hidden", fontFamily: "'Outfit', sans-serif" }}>
+    <div style={{ display: "flex", height: "100vh", background: "#0b0b09", color: "#e4e0d8", overflow: "hidden", fontFamily: "'Outfit', sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 2px; }
-        ::-webkit-scrollbar-thumb { background: #1c1c1a; }
-        .hd  { font-size:.63rem; font-weight:600; color:#c9a96e; letter-spacing:.1em; text-transform:uppercase; margin:10px 0 3px; }
-        .hd2 { font-size:.7rem;  font-weight:600; color:#908880; margin:7px 0 2px; }
-        .bl  { display:flex; align-items:baseline; gap:7px; padding:1px 0; font-size:.82rem; line-height:1.6; color:#c8c4bc; }
-        .dot { color:#404038; font-size:.5rem; flex-shrink:0; position:relative; top:-1px; }
-        .ar  { font-size:.82rem; color:#c9a96e; padding:2px 0; }
-        .nl  { display:flex; gap:8px; padding:2px 0; font-size:.82rem; color:#c8c4bc; }
-        .num { color:#585450; font-weight:600; font-size:.75rem; flex-shrink:0; }
-        strong { color:#e4e0d8; font-weight:600; }
-        @keyframes pulse  { 0%,100%{opacity:.3} 50%{opacity:1} }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-thumb { background: #1e1e1c; border-radius: 2px; }
+        .hd  { display: block; font-size: .69rem; font-weight: 600; color: #c4a87e; letter-spacing: .1em; text-transform: uppercase; margin: 8px 0 3px; }
+        .hd2 { display: block; font-size: .72rem; font-weight: 600; color: #a49880; margin: 6px 0 2px; }
+        .bl  { display: block; padding: 2px 0; font-size: .84rem; line-height: 1.55; color: #aca8a0; }
+        .dot { color: #404038; font-size: .5rem; margin-right: 6px; }
+        .ar  { display: block; padding: 2px 0; font-size: .84rem; color: #c9a96e; }
+        .nl  { display: block; padding: 2px 0; font-size: .84rem; color: #aca8a0; }
+        .num { color: #585450; font-weight: 600; margin-right: 8px; }
+        strong { color: #dedad2; font-weight: 600; }
+        @keyframes pulse  { 0%,100%{opacity:.4} 50%{opacity:1} }
         @keyframes fadein { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
-        .pulse  { animation: pulse  1.6s ease-in-out infinite; }
-        .fadein { animation: fadein .22s ease; }
-        textarea { resize:none; font-family:'Outfit',sans-serif; }
-        textarea::placeholder { color:#272724; }
-        button { font-family:'Outfit',sans-serif; cursor:pointer; }
-        .agent-btn { transition: background .12s; border: 1px solid transparent; }
-        .agent-btn:hover { background: #131311 !important; border-color: #1a1a18 !important; }
-        .agent-btn.active { background: #131311 !important; border-color: #1e1e1c !important; }
-        .cmd-item { cursor:pointer; padding:6px 12px; border-radius:5px; transition:background .1s; }
-        .cmd-item:hover { background:#141412; }
-        .tc { cursor:pointer; transition:background .12s; }
-        .tc:hover { background:#111110 !important; }
+        .pulse  { animation: pulse 1.4s ease-in-out infinite; }
+        .fadein { animation: fadein .3s ease; }
+        textarea { resize: none; border: none; outline: none; background: transparent; color: #e4e0d8; font-family: 'Outfit', sans-serif; font-size: .85rem; line-height: 1.6; }
+        textarea::placeholder { color: #3a3a36; }
+        .agent-btn { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid transparent; background: transparent; text-align: left; }
+        .agent-btn:hover { background: #131311 !important; }
+        .agent-btn.active { background: #141412 !important; border: 1px solid #1e1e1c !important; }
+        .qbtn { transition: all 0.2s; cursor: pointer; background: transparent; border: 1px solid #1c1c1a; border-radius: 24px; padding: 7px 14px; font-size: .75rem; color: #7a7670; }
+        .qbtn:hover { background: #111110; border-color: #2e2e2c; color: #aca8a0; }
+        .tc { cursor: pointer; transition: background 0.15s; }
+        .tc:hover { background: #131311 !important; }
       `}</style>
 
-      {/* ── SIDEBAR ───────────────────────────────────────── */}
-      <aside style={{ width: 192, background: "#0c0c0a", borderRight: "1px solid #141412", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-        <div style={{ padding: "17px 14px 12px", borderBottom: "1px solid #141412" }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: ".83rem", color: "#e4e0d8", lineHeight: 1.35, marginBottom: 3 }}>
-            The Neighbourhood<br />Collective
+      {/* ── LEFT SIDEBAR ────────────────────────────────── */}
+      <aside style={{ width: 220, borderRight: "1px solid #161614", display: "flex", flexDirection: "column", background: "#0d0d0b", flexShrink: 0 }}>
+        <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #161614" }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: ".95rem", color: "#e4e0d8", lineHeight: 1.3, marginBottom: 4 }}>
+            The Neighbourhood<br/>Collective
           </div>
-          <div style={{ fontSize: ".54rem", color: "#2a2a28", letterSpacing: ".1em", textTransform: "uppercase" }}>Day {getDaysSince()} · Indore</div>
+          <div style={{ fontSize: ".6rem", color: "#363632", letterSpacing: ".1em", textTransform: "uppercase" }}>Day {getDaysSince()} · Phase {getDaysSince() < 90 ? 1 : 2}</div>
         </div>
 
-        <div style={{ padding: "7px 7px 3px" }}>
-          <button className={`agent-btn${activeChat === "master" ? " active" : ""}`} onClick={() => setActiveChat("master")}
-            style={{ width: "100%", background: activeChat === "master" ? "#131311" : "transparent", borderLeft: activeChat === "master" ? "2px solid #c9a96e" : "2px solid transparent", borderRadius: 7, padding: "8px 10px", textAlign: "left" }}>
-            <div style={{ fontSize: ".56rem", color: "#c9a96e", letterSpacing: ".09em", textTransform: "uppercase", marginBottom: 1 }}>Master</div>
-            <div style={{ fontSize: ".75rem", fontWeight: 600, color: "#dedad2" }}>🧠 Command Center</div>
+        <div style={{ padding: "8px 8px 4px" }}>
+          <button className={`agent-btn${isMaster ? " active" : ""}`} onClick={() => setActiveChat("master")}
+            style={{ width: "100%", borderRadius: 6, padding: "8px 10px", borderLeft: isMaster ? "2px solid #c9a96e" : "2px solid transparent" }}>
+            <div style={{ fontSize: ".58rem", color: "#c9a96e", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 1 }}>Active</div>
+            <div style={{ fontSize: ".78rem", fontWeight: 600, color: isMaster ? "#dedad2" : "#6a6660" }}>🧠 Command Center</div>
           </button>
         </div>
 
-        <div style={{ padding: "9px 14px 4px", fontSize: ".53rem", color: "#222220", letterSpacing: ".1em", textTransform: "uppercase" }}>Agents</div>
+        <div style={{ padding: "14px 16px 6px", fontSize: ".57rem", color: "#2a2a28", letterSpacing: ".1em", textTransform: "uppercase" }}>Team Standby</div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "2px 6px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "2px 8px" }}>
           {allAgentIds.filter(id => id !== 'master').map(id => {
             const a = AGENTS[id];
             const isActive = activeChat === id;
             const isWorking = tasks.some(t => t.agent === id && t.status === "working");
             return (
               <button key={id} className={`agent-btn${isActive ? " active" : ""}`} onClick={() => setActiveChat(id)}
-                style={{ width: "100%", background: isActive ? "#131311" : "transparent", borderLeft: `2px solid ${isActive ? a.color : "transparent"}`, borderRadius: 6, padding: "6px 9px", textAlign: "left", marginBottom: 2, display: "flex", alignItems: "center", gap: 7 }}>
-                <span style={{ fontSize: ".68rem", color: a.color }}>{a.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: ".74rem", fontWeight: isActive ? 500 : 400, color: isActive ? "#dedad2" : "#6a6660", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
-                  {isWorking && <div style={{ fontSize: ".54rem", color: a.color }} className="pulse">working</div>}
+                style={{ width: "100%", borderRadius: 6, padding: "8px 10px", marginBottom: 2, display: "flex", alignItems: "center", gap: 10, borderLeft: isActive ? `2px solid ${a.color}` : "2px solid transparent" }}>
+                <span style={{ fontSize: ".85rem", color: a.color }}>{a.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: ".8rem", color: isActive ? "#dedad2" : "#aca8a0", fontWeight: isActive ? 500 : 400 }}>{a.name}</div>
+                  {isWorking && <div style={{ fontSize: ".55rem", color: a.color }} className="pulse">EXECUTING...</div>}
                 </div>
               </button>
             );
           })}
         </div>
 
-        <div style={{ borderTop: "1px solid #141412", padding: "9px 13px" }}>
-          <div style={{ display: "flex", gap: 14 }}>
-            <div><div style={{ fontSize: ".82rem", fontWeight: 600, color: "#c9a96e" }}>{working}</div><div style={{ fontSize: ".5rem", color: "#2a2a28" }}>active</div></div>
-            <div><div style={{ fontSize: ".82rem", fontWeight: 600, color: "#7eb8a4" }}>{done}</div><div style={{ fontSize: ".5rem", color: "#2a2a28" }}>done</div></div>
+        <div style={{ borderTop: "1px solid #161614", padding: "12px 16px" }}>
+          <div style={{ display: "flex", gap: 20 }}>
+            <div><div style={{ fontSize: ".85rem", fontWeight: 600, color: "#c9a96e" }}>{working}</div><div style={{ fontSize: ".58rem", color: "#363632" }}>working</div></div>
+            <div><div style={{ fontSize: ".85rem", fontWeight: 600, color: "#7eb8a4" }}>{done}</div><div style={{ fontSize: ".58rem", color: "#363632" }}>done</div></div>
           </div>
         </div>
       </aside>
 
-      {/* ── MAIN CHAT ─────────────────────────────────────── */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #141412" }}>
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid #141412", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div>
-              <div style={{ fontSize: ".72rem", fontWeight: 500, color: "#dedad2" }}>{isMaster ? "🧠 Command Center" : currentAgent?.name}</div>
-              <div style={{ fontSize: ".56rem", color: "#363632" }}>{isMaster ? getDateStr() : currentAgent?.title}</div>
-            </div>
+      {/* ── CENTER: MASTER CHAT ──────────────────────────── */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, borderRight: "1px solid #161614" }}>
+        <div style={{ padding: "14px 24px", borderBottom: "1px solid #161614", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: ".6rem", color: "#363632", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 1 }}>{isMaster ? "Strategic Orchestration" : currentAgent?.title}</div>
+            <div style={{ fontSize: ".78rem", color: "#545450" }}>{isMaster ? getDateStr() : currentAgent?.name}</div>
           </div>
+          {isMaster && working > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#131311", border: "1px solid #1c1c1a", padding: "6px 12px", borderRadius: 20 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#c9a96e" }} className="pulse" />
+              <span style={{ fontSize: ".68rem", color: "#c9a96e" }}>{working} agents active</span>
+            </div>
+          )}
         </div>
 
-        <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 11 }}>
+        <div ref={chatRef} style={{ flex: 1, overflowY: "auto", padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
           {currentMsgs.map(msg => {
             if (msg.role === "delegate") return (
               <div key={msg.id} className="fadein" style={{ display: "flex", justifyContent: "center" }}>
-                <div style={{ fontSize: ".6rem", color: "#383834", background: "#0f0f0d", border: "1px solid #161614", padding: "4px 14px", borderRadius: 20 }}>
+                <div style={{ fontSize: ".68rem", color: "#565652", background: "#101010", border: "1px solid #181816", padding: "5px 16px", borderRadius: 24 }}>
                   Delegated → {msg.content}
                 </div>
               </div>
@@ -390,21 +393,21 @@ export default function TNCCommandCenter() {
             if (msg.role === "signal") {
               const from = AGENTS[msg.from as AgentId];
               return (
-                <div key={msg.id} className="fadein" style={{ background: "#0d0d0c", border: `1px solid #1a1a18`, borderLeft: `2px solid ${from?.color}60`, borderRadius: 7, padding: "8px 12px" }}>
-                  <div style={{ fontSize: ".56rem", color: from?.color, letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 3 }}>
+                <div key={msg.id} className="fadein" style={{ background: "#0d0d0c", border: `1px solid #1a1a18`, borderLeft: `2px solid ${from?.color}60`, borderRadius: 7, padding: "12px 16px" }}>
+                  <div style={{ fontSize: ".58rem", color: from?.color, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>
                     {from?.icon} Signal from {from?.name}
                   </div>
-                  <div style={{ fontSize: ".76rem", color: "#8a8680", lineHeight: 1.6 }}>{msg.content}</div>
+                  <div style={{ fontSize: ".82rem", color: "#8a8680", lineHeight: 1.6 }}>{msg.content}</div>
                 </div>
               );
             }
 
             if (msg.role === "task-done") return (
-              <div key={msg.id} className="fadein" style={{ background: "#0d0f0d", border: "1px solid #161a16", borderLeft: "2px solid #7eb8a460", borderRadius: 7, padding: "8px 12px" }}>
-                <div style={{ fontSize: ".56rem", color: "#7eb8a4", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 3 }}>
+              <div key={msg.id} className="fadein" style={{ background: "#0d0f0d", border: "1px solid #161a16", borderLeft: "2px solid #7eb8a460", borderRadius: 7, padding: "12px 16px" }}>
+                <div style={{ fontSize: ".58rem", color: "#7eb8a4", letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 4 }}>
                   ✓ Task completed: {msg.title}
                 </div>
-                <div style={{ fontSize: ".72rem", color: "#7a7670", lineHeight: 1.65, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "pre-wrap", overflowX: "auto" }}>
+                <div style={{ fontSize: ".82rem", color: "#7a7670", lineHeight: 1.7, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "pre-wrap", overflowX: "auto" }}>
                   {msg.content}
                 </div>
               </div>
@@ -412,78 +415,101 @@ export default function TNCCommandCenter() {
 
             const isUser = msg.role === "user";
             return (
-              <div key={msg.id} className="fadein" style={{ alignSelf: isUser ? "flex-end" : "flex-start", maxWidth: "83%" }}>
+              <div key={msg.id} className="fadein" style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", maxWidth: "85%", alignSelf: isUser ? "flex-end" : "flex-start" }}>
+                {!isUser && (
+                  <div style={{ fontSize: ".58rem", color: "#363632", marginBottom: 4, letterSpacing: ".1em", textTransform: "uppercase" }}>{isMaster ? "Master Command" : currentAgent?.name}</div>
+                )}
                 <div style={{
-                  background: isUser ? "#131311" : "#0f0f0d",
-                  border: `1px solid ${isUser ? "#1c1c1a" : "#161614"}`,
-                  borderRadius: isUser ? "9px 9px 2px 9px" : "2px 9px 9px 9px",
-                  padding: "9px 13px",
-                  fontSize: ".82rem",
-                  lineHeight: 1.65,
-                  color: isUser ? "#8a8680" : "#c8c4bc",
+                  background: isUser ? "#191917" : "#111110",
+                  border: `1px solid ${isUser ? "#222220" : "#181816"}`,
+                  borderRadius: isUser ? "12px 12px 2px 12px" : "2px 12px 12px 12px",
+                  padding: "12px 16px",
+                  fontSize: ".85rem",
+                  lineHeight: 1.7,
+                  color: isUser ? "#b8b4ac" : "#d4d0c8",
+                  whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
+                  boxShadow: isUser ? "0 4px 12px rgba(0,0,0,0.2)" : "none"
                 }}>
                   <div dangerouslySetInnerHTML={{ __html: fmt(msg.content) }} />
                 </div>
-                <div style={{ fontSize: ".52rem", color: "#1e1e1c", marginTop: 2 }}>{getTimeStr(msg.time)}</div>
+                <div style={{ fontSize: ".58rem", color: "#282826", marginTop: 4, padding: "0 4px" }}>{getTimeStr(msg.time)}</div>
               </div>
             );
           })}
 
           {isBusy && (
-            <div className="fadein" style={{ alignSelf: "flex-start", background: "#0f0f0d", border: "1px solid #161614", borderRadius: "2px 9px 9px 9px", padding: "11px 14px", display: "flex", gap: 5 }}>
+            <div className="fadein" style={{ alignSelf: "flex-start", background: "#111110", border: "1px solid #181816", borderRadius: "2px 12px 12px 12px", padding: "12px 18px", display: "flex", gap: 5, alignItems: "center" }}>
               {[0, 1, 2].map(i => (
-                <div key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: "#383430", animation: `pulse 1.2s ${i * 0.2}s ease-in-out infinite` }} />
+                <div key={i} style={{ width: 5, height: 5, borderRadius: "50%", background: "#363632", animation: `pulse 1s ${i * 0.2}s ease-in-out infinite` }} />
               ))}
             </div>
           )}
         </div>
 
-        <div style={{ padding: "11px 18px 14px", borderTop: "1px solid #141412", flexShrink: 0 }}>
-          <div style={{ display: "flex", gap: 7, alignItems: "flex-end", background: "#0d0d0c", border: `1px solid #181816`, borderRadius: 8, padding: "8px 11px" }}>
-            <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={isMaster ? "Message Command Center…" : `Message ${currentAgent?.name}…`}
-              rows={1}
-              style={{ flex: 1, background: "transparent", border: "none", outline: "none", color: "#dedad2", fontSize: ".82rem", lineHeight: 1.5 }} />
+        {currentMsgs.length <= 1 && !isBusy && (
+          <div style={{ padding: "0 24px 12px", display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {(isMaster
+              ? ["What's the priority today?", "Let's plan a sprint", "Delegate tasks", "/brief"]
+              : ["Write copy", "Find prospects", "Analyze trends"]
+            ).map(q => (
+              <button key={q} className="qbtn" onClick={() => send(q)}>{q}</button>
+            ))}
+          </div>
+        )}
+
+        <div style={{ padding: "16px 24px 20px", borderTop: "1px solid #161614", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-end", background: "#101010", border: "1px solid #1a1a18", borderRadius: 12, padding: "10px 14px" }}>
+            <textarea ref={inputRef} value={input} onChange={e => { setInput(e.target.value); setShowCmd(isMaster && e.target.value.startsWith("/")); }} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder={isMaster ? "Brainstorm with Command Center…" : `Brief ${currentAgent?.name}…`}
+              rows={1} style={{ flex: 1 }} />
             <button onClick={() => send()} disabled={isBusy || !input.trim()}
               style={{
-                background: isBusy || !input.trim() ? "#131311" : (isMaster ? "#c9a96e" : currentAgent?.color),
-                border: "none", borderRadius: 5, padding: "5px 13px",
-                color: "#080807", fontSize: ".68rem", fontWeight: 600,
+                background: isBusy || !input.trim() ? "#181816" : (isMaster ? "#c9a96e" : currentAgent?.color || "#c9a96e"),
+                border: "none", borderRadius: 8, padding: "8px 18px",
+                color: isBusy || !input.trim() ? "#383834" : "#0a0a08",
+                fontSize: ".75rem", fontWeight: 600, cursor: isBusy || !input.trim() ? "not-allowed" : "pointer"
               }}>
-              {isBusy ? "…" : "Send"}
+              {isBusy ? "···" : "Send"}
             </button>
           </div>
         </div>
       </main>
 
       {/* ── RIGHT PANEL ───────────────────────────────────── */}
-      <aside style={{ width: 268, background: "#0c0c0a", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-        <div style={{ padding: "12px 13px 0", borderBottom: "1px solid #141412", display: "flex", gap: 16 }}>
-          <button onClick={() => setRightTab("tasks")} style={{ background: "none", border: "none", borderBottom: `2px solid ${rightTab === "tasks" ? "#c9a96e" : "transparent"}`, padding: "0 0 9px", fontSize: ".67rem", color: rightTab === "tasks" ? "#c9a96e" : "#363632", fontWeight: rightTab === "tasks" ? 600 : 400 }}>Tasks</button>
-          <button onClick={() => setRightTab("collab")} style={{ background: "none", border: "none", borderBottom: `2px solid ${rightTab === "collab" ? "#c9a96e" : "transparent"}`, padding: "0 0 9px", fontSize: ".67rem", color: rightTab === "collab" ? "#c9a96e" : "#363632", fontWeight: rightTab === "collab" ? 600 : 400 }}>Collab</button>
+      <aside style={{ width: 280, borderLeft: "1px solid #161614", display: "flex", flexDirection: "column", background: "#0d0d0b", flexShrink: 0 }}>
+        <div style={{ padding: "16px", borderBottom: "1px solid #161614", display: "flex", gap: 20 }}>
+          <button onClick={() => setRightTab("tasks")} style={{ background: "none", border: "none", borderBottom: `2px solid ${rightTab === "tasks" ? "#c9a96e" : "transparent"}`, padding: "0 0 10px", fontSize: ".72rem", color: rightTab === "tasks" ? "#c9a96e" : "#363632", fontWeight: 600 }}>TASKS</button>
+          <button onClick={() => setRightTab("collab")} style={{ background: "none", border: "none", borderBottom: `2px solid ${rightTab === "collab" ? "#c9a96e" : "transparent"}`, padding: "0 0 10px", fontSize: ".72rem", color: rightTab === "collab" ? "#c9a96e" : "#363632", fontWeight: 600 }}>COLLAB</button>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "6px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "10px" }}>
           {rightTab === "tasks" ? (
-            tasks.map(task => {
+            tasks.length === 0 ? (
+              <div style={{ padding: "60px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: "2rem", opacity: .1, marginBottom: 16 }}>◌</div>
+                <div style={{ fontSize: ".75rem", color: "#282826", lineHeight: 1.7 }}>No active scheduled tasks for the team.</div>
+              </div>
+            ) : tasks.map(task => {
               const ag = AGENTS[task.agent];
+              const isExp = expanded === task.id;
               const sc = task.status === "done" ? "#7eb8a4" : task.status === "error" ? "#c47a7a" : ag?.color;
               return (
-                <div key={task.id} className="tc fadein" onClick={() => setExpanded(expanded === task.id ? null : task.id)}
-                  style={{ background: "#0e0e0c", border: "1px solid #161614", borderLeft: `2px solid ${sc}`, borderRadius: 7, padding: "9px 11px", marginBottom: 5 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
-                    <span style={{ fontSize: ".62rem", color: ag?.color }}>{ag?.icon}</span>
-                    <span style={{ fontSize: ".58rem", color: "#484440", fontWeight: 500, textTransform: "uppercase" }}>{ag?.name}</span>
+                <div key={task.id} className="tc fadein" onClick={() => setExpanded(isExp ? null : task.id)}
+                  style={{ background: "#0f0f0d", border: "1px solid #161614", borderLeft: `3px solid ${sc}`, borderRadius: 8, padding: "12px", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ color: ag?.color, fontSize: ".75rem" }}>{ag?.icon}</span>
+                    <span style={{ fontSize: ".65rem", color: "#545450", fontWeight: 600, letterSpacing: ".08em", textTransform: "uppercase" }}>{ag?.name}</span>
                     <div style={{ marginLeft: "auto" }}>
-                      {task.status === "working" && <div style={{ width: 4, height: 4, borderRadius: "50%", background: sc }} className="pulse" />}
-                      {task.status === "done" && <span style={{ fontSize: ".6rem", color: sc }}>✓</span>}
+                      {task.status === "working" && <div style={{ width: 6, height: 6, borderRadius: "50%", background: sc }} className="pulse" />}
+                      {task.status === "done" && <span style={{ fontSize: ".7rem", color: sc }}>✓</span>}
                     </div>
                   </div>
-                  <div style={{ fontSize: ".74rem", color: "#b4b0a8", fontWeight: 500, lineHeight: 1.3 }}>{task.title}</div>
-                  {expanded === task.id && (
-                    <div style={{ marginTop: 9, paddingTop: 9, borderTop: "1px solid #161614", fontSize: ".68rem", color: "#706c68", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "pre-wrap" }}>
-                      {task.result || "Executing…"}
+                  <div style={{ fontSize: ".82rem", color: "#b8b4ac", fontWeight: 500, lineHeight: 1.4, marginBottom: 4 }}>{task.title}</div>
+                  <div style={{ fontSize: ".62rem", color: "#363632" }}>{task.status === "working" ? `Executing...` : `Done at ${getTimeStr(task.doneAt!)}`}</div>
+                  {isExp && (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #181816", fontSize: ".72rem", color: "#888480", lineHeight: 1.7, fontFamily: "'JetBrains Mono', monospace", whiteSpace: "pre-wrap" }}>
+                      {task.result || "Agent is processing instruction..."}
                     </div>
                   )}
                 </div>
@@ -491,9 +517,11 @@ export default function TNCCommandCenter() {
             })
           ) : (
             collab.map(c => (
-              <div key={c.id} className="fadein" style={{ background: "#0e0e0c", border: "1px solid #161614", borderRadius: 7, padding: "9px 11px", marginBottom: 5 }}>
-                <div style={{ fontSize: ".58rem", color: "#484440", marginBottom: 4 }}>{AGENTS[c.from].name} → {AGENTS[c.to].name}</div>
-                <div style={{ fontSize: ".7rem", color: "#7a7670", lineHeight: 1.6 }}>{c.note}</div>
+              <div key={c.id} className="fadein" style={{ background: "#0e0e0c", border: "1px solid #161614", borderRadius: 8, padding: "12px", marginBottom: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
+                  <span style={{ fontSize: ".58rem", color: "#484440" }}>{AGENTS[c.from].name} → {AGENTS[c.to].name}</span>
+                </div>
+                <div style={{ fontSize: ".78rem", color: "#7a7670", lineHeight: 1.6 }}>{c.note}</div>
               </div>
             ))
           )}
